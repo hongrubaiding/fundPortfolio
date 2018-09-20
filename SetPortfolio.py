@@ -69,8 +69,7 @@ class SetPortfolio:
             return fundNetValueDf
 
     def firstSelect(self, fundInfoDf,fundNetValueUpdateDf):
-        aa = fundInfoDf.sort_values(by=['FUND_RISKLEVEL', 'FUND_FUNDSCALE', 'FUND_SETUPDATE'])
-        aa = 0
+        fundInfoDF = fundInfoDf.sort_values(by=['FUND_RISKLEVEL', 'FUND_FUNDSCALE', 'FUND_SETUPDATE'])
 
     #整理净值数据
     def settleFundNetValue(self,fundInfoDf,fundNetValueDf):
