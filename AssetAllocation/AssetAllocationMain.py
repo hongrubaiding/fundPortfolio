@@ -29,7 +29,7 @@ class AssetAllocationMain:
         target_maxdown,
         target_risk
          '''
-        self.method = 'target_risk'                         #大类资产配置模型
+        self.method = 'risk_parity'                         #大类资产配置模型
 
     def getParam(self):
         # 获取初始参数
@@ -96,11 +96,31 @@ class AssetAllocationMain:
         ax2 = fig.add_subplot(212)
 
         aa = pd.concat([totalPofolio,indexReturnDf['000300.SH']],axis=1,join='inner')
+        self.calcRiskReturn(aa)
         # totalPofolioAccReturn.plot(ax=ax2)
         (1+aa).cumprod().plot(ax=ax2)
         plt.title(self.method)
         plt.savefig('C:\\Users\\lenovo\\Desktop\\大类资产配置走势图\\'+self.method)
         plt.show()
+
+    def calcRiskReturn(self,tempDf):
+        dicResult = {}
+        assetAnnualReturn = tempDf.mean()*250
+        assetStd = tempDf.std()*np.sqrt(250)
+
+        def MaxDrawdown(return_list):
+            '''最大回撤率'''
+            return_list = (return_list + 1).cumprod()
+            return_list = return_list.values
+            i = np.argmax(np.maximum.accumulate(return_list) - return_list)
+            if i == 0:
+                return 0
+            j = np.argmax(return_list[:i])
+            result = (return_list[j] - return_list[i]) / return_list[j]
+            return result
+        assetMaxDown = tempDf.dropna().apply(MaxDrawdown)
+        assetCalmar = assetAnnualReturn/assetMaxDown
+        assetSharp = (assetAnnualReturn-0.04)/assetStd
 
     def plotFigure(self):
         pass
