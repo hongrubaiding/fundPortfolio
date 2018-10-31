@@ -1,12 +1,16 @@
 # -- coding: utf-8 --
 
-import fundPool
+'''
+    代销公募基金基本信息和净值数据
+'''
+
+from fundSelect import fundPool
 from WindPy import w
 import pandas as pd
-import xlrd
 from datetime import datetime
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.pylab as plt
+
 
 class SetPortfolio:
     def __init__(self):
@@ -70,6 +74,8 @@ class SetPortfolio:
 
     def firstSelect(self, fundInfoDf,fundNetValueUpdateDf):
         fundInfoDF = fundInfoDf.sort_values(by=['FUND_RISKLEVEL', 'FUND_FUNDSCALE', 'FUND_SETUPDATE'])
+
+
 
     #整理净值数据
     def settleFundNetValue(self,fundInfoDf,fundNetValueDf):
