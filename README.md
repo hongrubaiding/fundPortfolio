@@ -6,4 +6,6 @@
 （4）最大回撤目标模型
 
 IndexAllocation.py为主要配置模型，AssetAllocationMain.py为主框架。
+
+fundSelect为公募基金筛选模块。
 待续。。。。
