@@ -83,7 +83,7 @@ class fundPortfolio:
         '''
         equal_weight min_variance,risk_parity，max_diversification，mean_var,target_maxdown,target_risk
         '''
-        AssetAllocationMainDemo = AssetAllocationMain(method='min_variance')
+        AssetAllocationMainDemo = AssetAllocationMain(method='risk_parity')
         totalPofolio, IndexWeightDf = AssetAllocationMainDemo.calcMain()
 
         #生成目标基金产品池模块
@@ -93,6 +93,7 @@ class fundPortfolio:
 
         #目标产品池基于大类回测权重，再次回测
         positionDf, usefulNetDf = self.getPortfolioWeightDf(IndexWeightDf, dicResult, resultDf)
+
         portfolioSe = self.backPofolio(positionDf, usefulNetDf)
 
         #投资组合绘图与风险指标计算
@@ -105,9 +106,21 @@ class fundPortfolio:
         print(riskReturndf)
 
         fig = plt.figure(figsize=(16,9))
-        ax1 = fig.add_subplot(111)
+        ax1 = fig.add_subplot(211)
         pofolioAndBenchAcc = (1+pofolioAndBench).cumprod()
         pofolioAndBenchAcc.plot(ax=ax1)
+
+        ax2 = fig.add_subplot(212)
+        color = ['#36648B', '#458B00', '#7A378B', '#8B0A50', '#8FBC8F', '#B8860B','#FFF68F','#FFF5EE','#FFF0F5','#FFEFDB']
+        for i in range(positionDf.shape[1]):
+            ax2.bar(positionDf.index.tolist(), positionDf.ix[:, i], color=color[i], bottom=positionDf.ix[:, :i].sum(axis=1))
+
+        labels = [SetPortfolioDemo.dicProduct[code[:6]] for code in positionDf.columns.tolist()]
+        ax2.legend(labels=labels, loc='best')
+        # for tick in ax1.get_xticklabels():
+        #     tick.set_rotation(90)
+        # ax2 = fig.add_subplot(212)
+
         plt.show()
 
 
