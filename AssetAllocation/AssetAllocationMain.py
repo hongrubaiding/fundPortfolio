@@ -29,7 +29,7 @@ class AssetAllocationMain:
         target_maxdown,
         target_risk
          '''
-        self.method = 'risk_parity'                         #大类资产配置模型
+        self.method = 'target_maxdown'                         #大类资产配置模型
 
     def getParam(self):
         # 获取初始参数
@@ -101,7 +101,7 @@ class AssetAllocationMain:
         (1+aa).cumprod().plot(ax=ax2)
         plt.title(self.method)
         plt.savefig('C:\\Users\\lenovo\\Desktop\\大类资产配置走势图\\'+self.method)
-        plt.show()
+        # plt.show()
 
     def calcRiskReturn(self,tempDf):
         dicResult = {}
@@ -120,7 +120,29 @@ class AssetAllocationMain:
             return result
         assetMaxDown = tempDf.dropna().apply(MaxDrawdown)
         assetCalmar = assetAnnualReturn/assetMaxDown
-        assetSharp = (assetAnnualReturn-0.04)/assetStd
+        assetSharp = (assetAnnualReturn)/assetStd
+        def formatData(tempSe,flagP = True):
+            tempDic = tempSe.to_dict()
+            if flagP:
+                # for key,value in tempDic.items():
+                #     aa = round(value,4)
+                #     bb = aa*100
+                #     aaaa = round(bb,4)
+                #     cc = str(bb)+'%'
+                result = {key:str(round(round(value,4)*100,2))+'%' for key,value in tempDic.items()}
+            else:
+                result = {key: round(value, 2) for key, value in tempDic.items()}
+            return result
+
+        dicResult[u'年化收益'] = formatData(assetAnnualReturn)
+        dicResult[u'年化波动'] = formatData(assetStd)
+        dicResult[u'最大回撤'] = formatData(assetMaxDown)
+        dicResult[u'夏普比率'] = formatData(assetSharp,flagP=False)
+        dicResult[u'卡玛比率'] = formatData(assetCalmar,flagP=False)
+        df = pd.DataFrame(dicResult).T
+        df.rename(columns={'000300.SH':u'沪深300','portfolio':u'投资组合'},inplace=True)
+        df.to_excel('C:\\Users\\lenovo\\Desktop\\大类资产配置结果\\'+self.method+'.xls')
+
 
     def plotFigure(self):
         pass
