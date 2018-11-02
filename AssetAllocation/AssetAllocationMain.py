@@ -11,6 +11,7 @@ from datetime import datetime
 import AssetAllocation.IndexAllocation as IA
 import matplotlib.pyplot as plt
 import matplotlib
+from PrintInfo import PrintInfo
 
 matplotlib.rcParams['font.sans-serif'] = ['SimHei']
 matplotlib.rcParams['font.family'] = 'sans-serif'
@@ -27,6 +28,7 @@ class AssetAllocationMain:
          '''
         self.method = method  # 大类资产配置模型
         self.plotFlag = False  # 是否绘图
+        self.PrintInfoDemo = PrintInfo()  # 日志信息模块
 
     def getParam(self):
         # 获取初始参数
@@ -45,21 +47,22 @@ class AssetAllocationMain:
 
             indexDataDf = pd.read_excel(
                 r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\AssetAllocation\\indexDataDf.xlsx")
-            print('本地读取indexDataDf')
+            self.PrintInfoDemo.PrintLog(infostr='本地读取大类指数历史数据 indexDataDf ')
             return indexDataDf
         except:
-            print('wind读取indexDataDf')
+            self.PrintInfoDemo.PrintLog(infostr='wind读取大类指数历史数据 indexDataDf ')
             w.start()
             indexData = w.wsd(codes=list(self.assetIndex.keys()), fields=['close'], beginTime=self.startDate,
                               endTime=self.endDate)
             if indexData.ErrorCode != 0:
-                print('wind获取指数数据失败，错误代码：', indexData.ErrorCode)
+                self.PrintInfoDemo.PrintLog(infostr='wind获取指数数据失败，错误代码： ',otherInfo=indexData.ErrorCode)
                 return
 
             indexDataDf = pd.DataFrame(indexData.Data, index=indexData.Codes, columns=indexData.Times).T
             writer = pd.ExcelWriter('indexDataDf.xlsx')
             indexDataDf.to_excel(writer)
             writer.save()
+            self.PrintInfoDemo.PrintLog(infostr='wind读取大类指数历史数据成功,写入本地文件indexDataDf.xlsx')
 
     # 回测资产配置
     def calcAssetAllocation(self):
@@ -67,7 +70,7 @@ class AssetAllocationMain:
         weightList = []  # 组合各时间持仓
         for k in range(250, self.indexReturnDf.shape[0], 21):
             datestr = datetime.strftime(self.indexReturnDf.index.tolist()[k], '%Y-%m-%d')
-            print('回测时间：', datestr)
+            self.PrintInfoDemo.PrintLog(infostr='回测当前日期： ',otherInfo=datestr)
             tempReturnDF = self.indexReturnDf.iloc[k - 250:k]
             weight = IA.get_smart_weight(tempReturnDF, method=self.method, wts_adjusted=False)
             tempPorfolio = (weight * self.indexReturnDf.iloc[k:k + 21]).sum(axis=1)
@@ -78,6 +81,7 @@ class AssetAllocationMain:
         totalPofolio = pd.concat(pofolioList, axis=0)
         totalPofolio.name = 'portfolio'
         weightDf = pd.concat(weightList, axis=1).T
+        self.PrintInfoDemo.PrintLog(infostr='回测完成！ ')
         return totalPofolio, weightDf
 
     # 计算风险收益指标，并存入excel文件中
