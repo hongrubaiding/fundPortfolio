@@ -1,5 +1,12 @@
 # -- coding: utf-8 --
 
+'''
+    该模块为主模块
+    （1）调用AssetAllocationMain，对大类资产进行回测，得到回测期内的各部分权重
+    （2）调用SetPortfolio，对公募基金池筛选，返回所对应的大类，及选中产品的历史净值
+    （3）结合（1），（2），按照筛选后的具体产品，回测，绘图，统计相关风险收益指标
+'''
+
 import pandas as pd
 import numpy as np
 from datetime import datetime, date
@@ -7,11 +14,15 @@ import AssetAllocation.AssetAllocationMain as AssetAllocationMain
 from AssetAllocation.AssetAllocationMain import AssetAllocationMain
 from fundSelect.SetPortfolio import SetPortfolio
 import matplotlib.pylab as plt
+from PrintInfo import PrintInfo
+import warnings
+warnings.filterwarnings("ignore")
 
 
 class fundPortfolio:
     def __init__(self):
         backDate = date.today().strftime('%Y-%m-%d')
+        self.PrintInfoDemo = PrintInfo()     #日志信息模块
 
     # 获取投资组合调仓期内的权重
     def getPortfolioWeightDf(self, IndexWeightDf, dicResult, resultDf):
@@ -30,7 +41,7 @@ class fundPortfolio:
                     usefulIndexWeightDf = IndexWeightDf.loc[assetDate:]
                 break
         else:
-            print('可用净值日期最小值，大于大类资产可用日期，请检查')
+            self.PrintInfoDemo.PrintLog(infostr='可用净值日期最小值，大于大类资产可用日期，请检查 ')
             return
 
         adjustDateList = usefulIndexWeightDf.index.tolist()  # 调仓日
@@ -66,8 +77,6 @@ class fundPortfolio:
             else:
                 startDate = positionDateList[dateNum]
             tempNetReturnDf = usefulNetReturnDf.loc[startDate:positionDateList[dateNum + 1]]
-
-            # aa= positionDf.loc[positionDateList[dateNum]]
             tempPorfolioReturn = (tempNetReturnDf * positionDf.loc[positionDateList[dateNum]]).sum(axis=1)
 
             if dateNum == 0:
@@ -83,44 +92,54 @@ class fundPortfolio:
         '''
         equal_weight min_variance,risk_parity，max_diversification，mean_var,target_maxdown,target_risk
         '''
-        AssetAllocationMainDemo = AssetAllocationMain(method='risk_parity')
+        method = 'target_risk'
+        self.PrintInfoDemo.PrintLog(infostr='大类资产配置模型 ', otherInfo=method)
+        AssetAllocationMainDemo = AssetAllocationMain(method=method)
         totalPofolio, IndexWeightDf = AssetAllocationMainDemo.calcMain()
+        self.PrintInfoDemo.PrintLog(infostr='大类资产配置模型初始化完成！')
 
-        #生成目标基金产品池模块
+        # 生成目标基金产品池模块
+        self.PrintInfoDemo.PrintLog(infostr='生成目标基金产品池...... ')
         SetPortfolioDemo = SetPortfolio(assetIndex=AssetAllocationMainDemo.assetIndex,
                                         backDate=date.today().strftime('%Y-%m-%d'))
         dicResult, resultDf = SetPortfolioDemo.goMain()
+        self.PrintInfoDemo.PrintLog(infostr='生成目标基金产品池完成！ ')
 
-        #目标产品池基于大类回测权重，再次回测
+        # 目标产品池基于大类回测权重，再次回测
+        self.PrintInfoDemo.PrintLog(infostr='目标产品池回测... ')
         positionDf, usefulNetDf = self.getPortfolioWeightDf(IndexWeightDf, dicResult, resultDf)
-
         portfolioSe = self.backPofolio(positionDf, usefulNetDf)
+        self.PrintInfoDemo.PrintLog(infostr='目标产品池回测完成！ ')
 
-        #投资组合绘图与风险指标计算
-        dateList = [dateFormat.strftime('%Y-%m-%d') for dateFormat in AssetAllocationMainDemo.indexReturnDf['000300.SH'].index]
-        benchSe = pd.Series(AssetAllocationMainDemo.indexReturnDf['000300.SH'].values,index=dateList)
+        # 投资组合绘图与风险指标计算
+        dateList = [dateFormat.strftime('%Y-%m-%d') for dateFormat in
+                    AssetAllocationMainDemo.indexReturnDf['000300.SH'].index]
+        benchSe = pd.Series(AssetAllocationMainDemo.indexReturnDf['000300.SH'].values, index=dateList)
         benchSe.name = '000300.SH'
 
-        pofolioAndBench = pd.concat([portfolioSe,benchSe], axis=1, join='inner')
+        pofolioAndBench = pd.concat([portfolioSe, benchSe], axis=1, join='inner')
         riskReturndf = AssetAllocationMainDemo.calcRiskReturnToExcel(pofolioAndBench)
-        print(riskReturndf)
+        riskReturndf.to_excel('C:\\Users\\lenovo\\Desktop\\类fof产品组合结果\\风险收益指标\\' + method + '.xls')
+        self.PrintInfoDemo.PrintLog(infostr="投资组合风险收益指标: ",otherInfo=riskReturndf)
 
-        fig = plt.figure(figsize=(16,9))
+        fig = plt.figure(figsize=(16, 9))
         ax1 = fig.add_subplot(211)
-        pofolioAndBenchAcc = (1+pofolioAndBench).cumprod()
+        pofolioAndBenchAcc = (1 + pofolioAndBench).cumprod()
         pofolioAndBenchAcc.plot(ax=ax1)
 
         ax2 = fig.add_subplot(212)
-        color = ['#36648B', '#458B00', '#7A378B', '#8B0A50', '#8FBC8F', '#B8860B','#FFF68F','#FFF5EE','#FFF0F5','#FFEFDB']
+        color = ['#36648B', '#458B00', '#7A378B', '#8B0A50', '#8FBC8F', '#B8860B', '#FFF68F', '#FFF5EE', '#FFF0F5',
+                 '#FFEFDB']
         for i in range(positionDf.shape[1]):
-            ax2.bar(positionDf.index.tolist(), positionDf.ix[:, i], color=color[i], bottom=positionDf.ix[:, :i].sum(axis=1))
+            ax2.bar(positionDf.index.tolist(), positionDf.ix[:, i], color=color[i],
+                    bottom=positionDf.ix[:, :i].sum(axis=1))
 
         labels = [SetPortfolioDemo.dicProduct[code[:6]] for code in positionDf.columns.tolist()]
         ax2.legend(labels=labels, loc='best')
-        # for tick in ax1.get_xticklabels():
-        #     tick.set_rotation(90)
-        # ax2 = fig.add_subplot(212)
+        for tick in ax2.get_xticklabels():
+            tick.set_rotation(90)
 
+        plt.savefig('C:\\Users\\lenovo\\Desktop\\类fof产品组合结果\\走势图\\' + method)
         plt.show()
 
 
