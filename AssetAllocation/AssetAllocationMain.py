@@ -19,7 +19,7 @@ matplotlib.rcParams['axes.unicode_minus'] = False
 
 
 class AssetAllocationMain:
-    def __init__(self, method='risk_parity'):
+    def __init__(self, method='target_maxdown',**IndexAllocationParam):
         self.assetIndex = self.getParam()
         self.startDate = '2006-01-01'
         self.endDate = '2017-06-01'  # 回测截止时间
@@ -29,6 +29,12 @@ class AssetAllocationMain:
         self.method = method  # 大类资产配置模型
         self.plotFlag = False  # 是否绘图
         self.PrintInfoDemo = PrintInfo()  # 日志信息模块
+        self.allocationFlag = False         #是否传入了大类资产配置模型的个性化参数
+        if IndexAllocationParam:                        #传入了大类资产配置模型的个性化参数
+            self.indexAllocationParam = IndexAllocationParam['AllocationParam']
+            self.allocationFlag = True
+
+
 
     def getParam(self):
         # 获取初始参数
@@ -72,7 +78,11 @@ class AssetAllocationMain:
             datestr = datetime.strftime(self.indexReturnDf.index.tolist()[k], '%Y-%m-%d')
             self.PrintInfoDemo.PrintLog(infostr='回测当前日期： ',otherInfo=datestr)
             tempReturnDF = self.indexReturnDf.iloc[k - 250:k]
-            weight = IA.get_smart_weight(tempReturnDF, method=self.method, wts_adjusted=False)
+
+            if self.allocationFlag:
+                weight = IA.get_smart_weight(returnDf=tempReturnDF, method=self.method, wts_adjusted=False,allocationParam=self.indexAllocationParam)
+            else:
+                weight = IA.get_smart_weight(returnDf=tempReturnDF, method=self.method, wts_adjusted=False)
             tempPorfolio = (weight * self.indexReturnDf.iloc[k:k + 21]).sum(axis=1)
             weight.name = datestr
 
