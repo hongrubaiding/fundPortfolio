@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 # import matplotlib.pyplot as plt
 
 
-def get_smart_weight(returnDf, method='mean var', wts_adjusted=False):
+def get_smart_weight(returnDf, method='mean_var', wts_adjusted=False,**modelParam):
     '''
     功能：输入协方差矩阵，得到不同优化方法下的权重配置
     输入：
@@ -33,8 +33,13 @@ def get_smart_weight(returnDf, method='mean var', wts_adjusted=False):
         result = (return_list[j] - return_list[i]) / return_list[j]
         return result
 
-    assetVar = returnDf.var().max()*250*0.4         #用户可承担的风险组合站所有资产最大的百分比
-    assetMaxDown = returnDf.dropna().apply(MaxDrawdown).max()*0.3  #用户可承担的最大回撤组合站所有资产最大的百分比
+    if method == 'target_maxdown':
+        rate = modelParam.get('allocationParam',0.3)
+        assetMaxDown = returnDf.dropna().apply(MaxDrawdown).max() * rate  # 用户可承担的最大回撤组合站所有资产最大的百分比
+    elif method == 'target_risk':
+        rate = modelParam.get('allocationParam', 0.3)
+        assetStd = returnDf.std().max()*np.sqrt(250)*rate       #用户可承担的风险组合站所有资产最大的百分比
+
 
 
     # 定义目标函数
@@ -80,10 +85,10 @@ def get_smart_weight(returnDf, method='mean var', wts_adjusted=False):
         res = minimize(fun4, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options)
     elif method == 'target_maxdown':
         cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1},
-                {'type': 'eq', 'fun': lambda x: -MaxDrawdown((x*returnDf).sum(axis=1))+assetMaxDown})
+                {'type': 'ineq', 'fun': lambda x: -MaxDrawdown((x*returnDf).sum(axis=1))+assetMaxDown})
         res = minimize(fun5, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options,tol=1e-5)
     elif method == 'target_risk':
-        cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1},{'type': 'eq', 'fun': lambda x: fun1(x)[0,0]*250-assetVar}
+        cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1},{'type': 'ineq', 'fun': lambda x: -np.sqrt(fun1(x)[0,0])*np.sqrt(250)+assetStd}
                 )#,
         res = minimize(fun5, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options)
     else:
@@ -91,7 +96,7 @@ def get_smart_weight(returnDf, method='mean var', wts_adjusted=False):
 
     # 权重调整
     if res['success'] == False:
-        print("minize result：",res['message'])
+        # print("minize result：",res['message'])
         pass
     wts = pd.Series(index=cov_mat.index, data=res['x'])
     if wts_adjusted == True:
