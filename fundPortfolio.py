@@ -15,6 +15,7 @@ from AssetAllocation.AssetAllocationMain import AssetAllocationMain
 from fundSelect.SetPortfolio import SetPortfolio
 import matplotlib.pylab as plt
 from PrintInfo import PrintInfo
+import os
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -23,6 +24,7 @@ class fundPortfolio:
     def __init__(self):
         backDate = date.today().strftime('%Y-%m-%d')
         self.PrintInfoDemo = PrintInfo()     #日志信息模块
+        self.PathFolder = r'C:\\Users\\lenovo\\Desktop\\资产配置研究\\' #存放回测结果的主文件夹
 
     # 获取投资组合调仓期内的权重
     def getPortfolioWeightDf(self, IndexWeightDf, dicResult, resultDf):
@@ -87,14 +89,32 @@ class fundPortfolio:
         portfolioSe.name = 'portfolio'
         return portfolioSe
 
-    def setMain(self):
+    #文件管理
+    def fileMake(self,newFoldName):
+        #检查指定路径是否存在存放结果的文件夹，不存在就新建
+        folder = os.path.exists(self.PathFolder)
+        if not folder:
+            os.makedirs(self.PathFolder)
+
+        newFolder = self.PathFolder + newFoldName+"\\"
+        if not os.path.exists(newFolder):
+            os.makedirs(newFolder)
+        return newFolder
+
+    def setMain(self,method='risk_parity',**param):
         # 生成大类资产配置模块
-        '''
-        equal_weight min_variance,risk_parity，max_diversification，mean_var,target_maxdown,target_risk
-        '''
-        method = 'target_risk'
         self.PrintInfoDemo.PrintLog(infostr='大类资产配置模型 ', otherInfo=method)
-        AssetAllocationMainDemo = AssetAllocationMain(method=method)
+        if method == 'target_maxdown' or method == 'target_risk':
+            if param:
+                AllocationParam = param['rate']
+            else:
+                AllocationParam = 0.3
+            nameStr = ' rate= '+str(AllocationParam)       #图片标题名称和excel的sheet名称
+            AssetAllocationMainDemo = AssetAllocationMain(method=method,AllocationParam=AllocationParam)
+        else:
+            nameStr = method
+            AssetAllocationMainDemo = AssetAllocationMain(method=method)
+
         totalPofolio, IndexWeightDf = AssetAllocationMainDemo.calcMain()
         self.PrintInfoDemo.PrintLog(infostr='大类资产配置模型初始化完成！')
 
@@ -119,11 +139,15 @@ class fundPortfolio:
 
         pofolioAndBench = pd.concat([portfolioSe, benchSe], axis=1, join='inner')
         riskReturndf = AssetAllocationMainDemo.calcRiskReturnToExcel(pofolioAndBench)
-        riskReturndf.to_excel('C:\\Users\\lenovo\\Desktop\\类fof产品组合结果\\风险收益指标\\' + method + '.xls')
+
+        newFold = self.fileMake(newFoldName=method)
+        filePath = newFold+'风险收益指标'+nameStr+'.xls'
+        riskReturndf.to_excel(filePath)
         self.PrintInfoDemo.PrintLog(infostr="投资组合风险收益指标: ",otherInfo=riskReturndf)
 
         fig = plt.figure(figsize=(16, 9))
         ax1 = fig.add_subplot(211)
+        ax1.set_title(nameStr)
         pofolioAndBenchAcc = (1 + pofolioAndBench).cumprod()
         pofolioAndBenchAcc.plot(ax=ax1)
 
@@ -139,10 +163,15 @@ class fundPortfolio:
         for tick in ax2.get_xticklabels():
             tick.set_rotation(90)
 
-        plt.savefig('C:\\Users\\lenovo\\Desktop\\类fof产品组合结果\\走势图\\' + method)
-        plt.show()
+        plt.savefig(newFold +('%s.png'%(nameStr)))
+        # plt.show()
 
 
 if __name__ == '__main__':
+    methodList = ['equal_weight','min_variance','risk_parity','mean_var','target_risk']
+    '''
+       equal_weight min_variance,risk_parity，max_diversification，mean_var,target_maxdown,target_risk
+    '''
     fundPortfolioDemo = fundPortfolio()
-    fundPortfolioDemo.setMain()
+    # fundPortfolioDemo.setMain(method='risk_parity')
+    fundPortfolioDemo.setMain(method='target_risk',rate=0.18)
