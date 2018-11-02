@@ -173,5 +173,6 @@ if __name__ == '__main__':
        equal_weight min_variance,risk_parity，max_diversification，mean_var,target_maxdown,target_risk
     '''
     fundPortfolioDemo = fundPortfolio()
+
     # fundPortfolioDemo.setMain(method='risk_parity')
     fundPortfolioDemo.setMain(method='target_risk',rate=0.18)
