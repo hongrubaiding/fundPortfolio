@@ -9,6 +9,7 @@ from WindPy import w
 import pandas as pd
 from datetime import datetime,date
 import numpy as np
+from PrintInfo import PrintInfo
 import matplotlib.pylab as plt
 
 class SetPortfolio:
@@ -17,17 +18,17 @@ class SetPortfolio:
         self.getInfoFlag = True
         self.backDate = backDate
         self.assetIndex = assetIndex    #大类资产指数
+        self.PrintInfoDemo = PrintInfo()  # 日志信息模块
 
     # 获取基金池的基本信息
     def getFundInfo(self):
         try:
-
             fundInfoDf = pd.read_excel(r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\fundSelect\\fundInfoDf.xlsx")
-            print('本地读取fundInfoDf')
+            self.PrintInfoDemo.PrintLog(infostr='本地读取基金历史信息数据 fundInfoDf')
             return fundInfoDf
         except:
             w.start()
-            print('wind读取fundInfoDf')
+            self.PrintInfoDemo.PrintLog(infostr='wind读取基金历史信息数据 fundInfoDf')
             codeList = list(self.dicProduct.keys())
             codeList = [code + '.OF' for code in codeList]
             filedList = ['fund_setupdate', 'fund_fundscale', 'fund_scaleranking', 'fund_mgrcomp', 'fund_type',
@@ -38,40 +39,41 @@ class SetPortfolio:
                          'NAV_periodicannualizedreturn', 'fund_manager_managerworkingyears', 'fund_benchmark',
                          'fund_benchindexcode',
                          'fund_initial']
-            '''https://github.com/hongrubaiding/fundPortfolio'''
             options = "fundType=3;order=1;returnType=1;startDate=20180813;endDate=20180913;period=2;riskFreeRate=1"
             fundInfo = w.wss(codes=codeList, fields=filedList, options=options)
             if fundInfo.ErrorCode != 0:
-                print('获取fundInfo失败：', fundInfo.ErrorCode)
+                self.PrintInfoDemo.PrintLog(infostr='wind读取基金历史信息数据失败，错误代码：',otherInfo=fundInfo.ErrorCode)
                 return pd.DataFrame()
             fundInfoDf = pd.DataFrame(fundInfo.Data, index=fundInfo.Fields, columns=codeList).T
             writer = pd.ExcelWriter(r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\fundSelect\\fundInfoDf.xlsx")
             fundInfoDf.to_excel(writer)
             writer.save()
+            self.PrintInfoDemo.PrintLog(infostr='wind读取基金历史信息数据成功，写入本地文件fundInfoDf.xlsx')
             return fundInfoDf
 
     #获取基金池的历史净值数据
     def getFundNetValue(self,startTime):
         try:
             fundNetValueDF = pd.read_excel(r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\fundSelect\\fundNetValueDF.xlsx")
-            print('本地读取fundNetValueDF')
+            self.PrintInfoDemo.PrintLog(infostr='本地读取基金净值数据 fundNetValueDF')
             return fundNetValueDF
         except:
             w.start()
-            print('wind读取fundNetValueDF')
+            self.PrintInfoDemo.PrintLog(infostr='wind读取基金净值数据 fundNetValueDF')
             codeList = list(self.dicProduct.keys())
             codeList = [code + '.OF' for code in codeList]
-            filed = 'nav'
+            filed = 'NAV_adj'       #复权单位净值
             fundNetValue = w.wsd(codes=codeList,fields=filed,beginTime=startTime,endTime=datetime.today(),options='Fill=Previous')
 
             if fundNetValue.ErrorCode != 0:
-                print('获取fundInfo失败：', fundNetValue.ErrorCode)
+                self.PrintInfoDemo.PrintLog(infostr='wind读取基金净值数据失败，错误代码： ',otherInfo=fundNetValue.ErrorCode)
                 return pd.DataFrame()
             fundNetValueDf = pd.DataFrame(fundNetValue.Data, index=fundNetValue.Codes, columns=fundNetValue.Times).T
             fundNetValueDf[fundNetValueDf==-2] = np.nan
             writer = pd.ExcelWriter(r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\fundSelect\\fundNetValueDF.xlsx")
             fundNetValueDf.to_excel(writer)
             writer.save()
+            self.PrintInfoDemo.PrintLog(infostr='wind读取基金净值数据成功，写入本地文件fundNetValueDF.xlsx ')
             return fundNetValueDf
 
     #初步过滤基金池，并对基金池归类
@@ -107,7 +109,8 @@ class SetPortfolio:
         dicResult['000905.SH'] = ['162711.OF','110026.OF']
         dicResult['SPX.GI'] = ['270042.OF']
         dicResult['CBA00601.CS'] = ['050011.OF']
-        dicResult['AU9999.SGE'] = ['002610.OF']
+        # dicResult['AU9999.SGE'] = ['002610.OF']
+        dicResult['AU9999.SGE'] = ['518800.OF']
 
         totalSelectList = []
         for key,value in dicResult.items():
@@ -125,7 +128,6 @@ class SetPortfolio:
         fundNetValueUpdateDf = fundNetValueDf.apply(fifteData)
         fundNetValueUpdateDf.dropna(how='all',inplace=True)
         return fundNetValueUpdateDf
-
 
     def goMain(self):
         fundInfoDf = self.getFundInfo()
