@@ -3,8 +3,10 @@
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+from PrintInfo import PrintInfo
 # import matplotlib.pyplot as plt
 
+PrintInfoDemo = PrintInfo()
 
 def get_smart_weight(returnDf, method='mean_var', wts_adjusted=False,**modelParam):
     '''
@@ -37,8 +39,10 @@ def get_smart_weight(returnDf, method='mean_var', wts_adjusted=False,**modelPara
         rate = modelParam.get('allocationParam',0.3)
         assetMaxDown = returnDf.dropna().apply(MaxDrawdown).max() * rate  # 用户可承担的最大回撤组合站所有资产最大的百分比
     elif method == 'target_risk':
-        rate = modelParam.get('allocationParam', 0.3)
-        assetStd = returnDf.std().max()*np.sqrt(250)*rate       #用户可承担的风险组合站所有资产最大的百分比
+        rate = modelParam.get('allocationParam', 0.2)
+        #用户可承担的风险组合占所有资产最大的百分比
+        assetStd = (returnDf.std().max() - returnDf.std().min())*np.sqrt(250)*rate
+        # assetStd = rate
 
 
 
@@ -50,6 +54,7 @@ def get_smart_weight(returnDf, method='mean_var', wts_adjusted=False,**modelPara
     def fun2(x):
         tmp = (omega * np.matrix(x).T).A1
         risk = x * tmp
+
         delta_risk = [sum((i - risk) ** 2) for i in risk]
         return sum(delta_risk)
 
@@ -86,9 +91,9 @@ def get_smart_weight(returnDf, method='mean_var', wts_adjusted=False,**modelPara
     elif method == 'target_maxdown':
         cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1},
                 {'type': 'ineq', 'fun': lambda x: -MaxDrawdown((x*returnDf).sum(axis=1))+assetMaxDown})
-        res = minimize(fun5, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options,tol=1e-5)
+        res = minimize(fun5, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options,tol=1e-5)  #Nelder Mead,SLSQP
     elif method == 'target_risk':
-        cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1},{'type': 'ineq', 'fun': lambda x: -np.sqrt(fun1(x)[0,0])*np.sqrt(250)+assetStd}
+        cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1},{'type': 'eq', 'fun': lambda x: -np.sqrt(fun1(x)[0,0])*np.sqrt(250)+assetStd}
                 )#,
         res = minimize(fun5, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options)
     else:
@@ -96,9 +101,15 @@ def get_smart_weight(returnDf, method='mean_var', wts_adjusted=False,**modelPara
 
     # 权重调整
     if res['success'] == False:
+        PrintInfoDemo.PrintLog(infostr="minize result：",otherInfo=res['message'])
         # print("minize result：",res['message'])
-        pass
+
     wts = pd.Series(index=cov_mat.index, data=res['x'])
+    # aa = -np.sqrt(fun1(res['x'])[0,0])*np.sqrt(250)+assetStd
+    # bb = fun5(res['x'])
+    # cc = sum(res['x'])
+    # a=0
+
     if wts_adjusted == True:
         wts = wts[wts >= 0.0001]
         return wts / wts.sum() * 1.0
