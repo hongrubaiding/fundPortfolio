@@ -12,6 +12,7 @@ import AssetAllocation.IndexAllocation as IA
 import matplotlib.pyplot as plt
 import matplotlib
 from PrintInfo import PrintInfo
+from CalcRiskReturnToExcel import CalcRiskReturnToExcel
 
 matplotlib.rcParams['font.sans-serif'] = ['SimHei']
 matplotlib.rcParams['font.family'] = 'sans-serif'
@@ -19,7 +20,7 @@ matplotlib.rcParams['axes.unicode_minus'] = False
 
 
 class AssetAllocationMain:
-    def __init__(self, method='target_maxdown',**IndexAllocationParam):
+    def __init__(self, method='risk_parity',**IndexAllocationParam):
         self.assetIndex = self.getParam()
         self.startDate = '2006-01-01'
         self.endDate = '2017-06-01'  # 回测截止时间
@@ -33,8 +34,6 @@ class AssetAllocationMain:
         if IndexAllocationParam:                        #传入了大类资产配置模型的个性化参数
             self.indexAllocationParam = IndexAllocationParam['AllocationParam']
             self.allocationFlag = True
-
-
 
     def getParam(self):
         # 获取初始参数
@@ -50,7 +49,6 @@ class AssetAllocationMain:
     def getHisData(self):
         # 本地或wind获取大类资产历史数据
         try:
-
             indexDataDf = pd.read_excel(
                 r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\AssetAllocation\\indexDataDf.xlsx")
             self.PrintInfoDemo.PrintLog(infostr='本地读取大类指数历史数据 indexDataDf ')
@@ -94,47 +92,6 @@ class AssetAllocationMain:
         self.PrintInfoDemo.PrintLog(infostr='回测完成！ ')
         return totalPofolio, weightDf
 
-    # 计算风险收益指标，并存入excel文件中
-    def calcRiskReturnToExcel(self, tempDf,toExcelFlag=False):
-        dicResult = {}
-        assetAnnualReturn = tempDf.mean() * 250
-        assetStd = tempDf.std() * np.sqrt(250)
-
-        def MaxDrawdown(return_list):
-            '''最大回撤率'''
-            return_list = (return_list + 1).cumprod()
-            return_list = return_list.values
-            i = np.argmax(np.maximum.accumulate(return_list) - return_list)
-            if i == 0:
-                return 0
-            j = np.argmax(return_list[:i])
-            result = (return_list[j] - return_list[i]) / return_list[j]
-            return result
-
-        assetMaxDown = tempDf.dropna().apply(MaxDrawdown)
-        assetCalmar = assetAnnualReturn / assetMaxDown
-        assetSharp = (assetAnnualReturn) / assetStd
-
-        def formatData(tempSe, flagP=True):
-            tempDic = tempSe.to_dict()
-            if flagP:
-                result = {key: str(round(round(value, 4) * 100, 2)) + '%' for key, value in tempDic.items()}
-            else:
-                result = {key: round(value, 2) for key, value in tempDic.items()}
-            return result
-
-        dicResult[u'年化收益'] = formatData(assetAnnualReturn)
-        dicResult[u'年化波动'] = formatData(assetStd)
-        dicResult[u'最大回撤'] = formatData(assetMaxDown)
-        dicResult[u'夏普比率'] = formatData(assetSharp, flagP=False)
-        dicResult[u'卡玛比率'] = formatData(assetCalmar, flagP=False)
-        df = pd.DataFrame(dicResult).T
-        df.rename(columns={'000300.SH': u'沪深300', 'portfolio': u'投资组合'}, inplace=True)
-        if toExcelFlag:
-            df.to_excel('C:\\Users\\lenovo\\Desktop\\大类资产配置结果\\' + self.method + '.xls')
-        return df
-
-
     # 绘图
     def plotFigure(self, totalPofolio, weightDf,):
         fig = plt.figure(figsize=(16, 12))
@@ -150,7 +107,8 @@ class AssetAllocationMain:
         ax2 = fig.add_subplot(212)
 
         pofolioAndBench = pd.concat([totalPofolio, self.indexReturnDf['000300.SH']], axis=1, join='inner')
-        # self.calcRiskReturnToExcel(pofolioAndBench)
+        # CalcRiskReturnToExcelDemo = CalcRiskReturnToExcel()
+        # CalcRiskReturnToExcelDemo.GoMain(pofolioAndBench,toExcelPath='C:\\Users\\lenovo\\Desktop\\大类资产配置结果\\' + self.method + '.xls')
         (1 + pofolioAndBench).cumprod().plot(ax=ax2)
         plt.title(self.method)
         # plt.savefig('C:\\Users\\lenovo\\Desktop\\大类资产配置走势图\\' + self.method)
