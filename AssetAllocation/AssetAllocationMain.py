@@ -20,20 +20,17 @@ matplotlib.rcParams['axes.unicode_minus'] = False
 
 
 class AssetAllocationMain:
-    def __init__(self, method='risk_parity',**IndexAllocationParam):
+    def __init__(self):
         self.assetIndex = self.getParam()
         self.startDate = '2006-01-01'
         self.endDate = '2017-06-01'  # 回测截止时间
 
         '''equal_weight min_variance,risk_parity，max_diversification，mean_var,target_maxdown,target_risk
          '''
-        self.method = method  # 大类资产配置模型
+        # self.method = method  # 大类资产配置模型
         self.plotFlag = False  # 是否绘图
         self.PrintInfoDemo = PrintInfo()  # 日志信息模块
         self.allocationFlag = False         #是否传入了大类资产配置模型的个性化参数
-        if IndexAllocationParam:                        #传入了大类资产配置模型的个性化参数
-            self.indexAllocationParam = IndexAllocationParam['AllocationParam']
-            self.allocationFlag = True
 
     def getParam(self):
         # 获取初始参数
@@ -69,7 +66,7 @@ class AssetAllocationMain:
             self.PrintInfoDemo.PrintLog(infostr='wind读取大类指数历史数据成功,写入本地文件indexDataDf.xlsx')
 
     # 回测资产配置
-    def calcAssetAllocation(self):
+    def calcAssetAllocation(self,method,IndexAllocationParam={}):
         pofolioList = []  # 组合业绩表现
         weightList = []  # 组合各时间持仓
         for k in range(250, self.indexReturnDf.shape[0], 21):
@@ -77,10 +74,17 @@ class AssetAllocationMain:
             self.PrintInfoDemo.PrintLog(infostr='回测当前日期： ',otherInfo=datestr)
             tempReturnDF = self.indexReturnDf.iloc[k - 250:k]
 
-            if self.allocationFlag:
-                weight = IA.get_smart_weight(returnDf=tempReturnDF, method=self.method, wts_adjusted=False,allocationParam=self.indexAllocationParam)
+            if k==250:
+                initWeight = [1/tempReturnDF.shape[1]]*tempReturnDF.shape[1]
+                initX = pd.Series(initWeight,index=tempReturnDF.columns)
             else:
-                weight = IA.get_smart_weight(returnDf=tempReturnDF, method=self.method, wts_adjusted=False)
+                initX = weight
+
+            if IndexAllocationParam:
+                allocationParam = IndexAllocationParam['AllocationParam']
+                weight = IA.get_smart_weight(returnDf=tempReturnDF, method=method,initX=initX ,wts_adjusted=False,allocationParam=allocationParam)
+            else:
+                weight = IA.get_smart_weight(returnDf=tempReturnDF, method=method,initX=initX, wts_adjusted=False)
             tempPorfolio = (weight * self.indexReturnDf.iloc[k:k + 21]).sum(axis=1)
             weight.name = datestr
 
@@ -114,7 +118,7 @@ class AssetAllocationMain:
         # plt.savefig('C:\\Users\\lenovo\\Desktop\\大类资产配置走势图\\' + self.method)
         plt.show()
 
-    def calcMain(self):
+    def calcMain(self,method='risk_parity',**IndexAllocationParam):
         # 主函数入口
         indexDataDf = self.getHisData()
 
@@ -122,7 +126,7 @@ class AssetAllocationMain:
         self.indexReturnDf = (indexDataDf - indexDataDf.shift(1)) / indexDataDf.shift(1)
 
         # 组合业绩回测
-        totalPofolio, weightDf = self.calcAssetAllocation()
+        totalPofolio, weightDf = self.calcAssetAllocation(method,IndexAllocationParam)
 
         if self.plotFlag:
             self.plotFigure(totalPofolio, weightDf, self.indexReturnDf)
