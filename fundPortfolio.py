@@ -111,12 +111,19 @@ class fundPortfolio:
             else:
                 AllocationParam = 0.3
             nameStr = ' rate= ' + str(AllocationParam)  # 图片标题名称和excel的sheet名称
-            AssetAllocationMainDemo = AssetAllocationMain(method=method, AllocationParam=AllocationParam)
+
+        elif method == 'risk_parity':
+            if param:
+                AllocationParam = param['rate']
+            else:
+                AllocationParam = 'equal'
+            nameStr = ' rate= ' + str(AllocationParam)  # 图片标题名称和excel的sheet名称
         else:
             nameStr = method
-            AssetAllocationMainDemo = AssetAllocationMain(method=method)
 
-        totalPofolio, IndexWeightDf = AssetAllocationMainDemo.calcMain()
+
+        AssetAllocationMainDemo = AssetAllocationMain()
+        totalPofolio, IndexWeightDf = AssetAllocationMainDemo.calcMain(method=method,AllocationParam=AllocationParam)
         self.PrintInfoDemo.PrintLog(infostr='大类资产配置模型初始化完成！')
         return AssetAllocationMainDemo,totalPofolio,IndexWeightDf,nameStr
 
@@ -142,7 +149,6 @@ class fundPortfolio:
         totalPofolioDate = [dateFormat.strftime('%Y-%m-%d') for dateFormat in totalPofolio.index]
         totalPofolio = pd.Series(totalPofolio.values,index=totalPofolioDate)
         totalPofolio.name = u'大类资产组合'
-
         portfolioSe, positionDf,SetPortfolioDemo,usefulNetDf = self.getFundPool(AssetAllocationMainDemo,IndexWeightDf)
 
         # 投资组合绘图与风险指标计算
@@ -151,13 +157,15 @@ class fundPortfolio:
         benchSe = pd.Series(indexReturnDf['000300.SH'].values, index=dateList)
         benchSe.name = u'沪深300'
 
+        benchSe1 = pd.Series(indexReturnDf['CBA00601.CS'].values, index=dateList)
+        benchSe1.name = u'中债国债总财富指数'
+
         weightSe = pd.Series([0.6,0.4],index=['000300.SH','CBA00601.CS'])
         tempBench = indexReturnDf[['000300.SH','CBA00601.CS']]*weightSe
         tempBench = tempBench.sum(axis=1)
         tempBench = pd.Series(tempBench.values, index=dateList)
         tempBench.name = "%s沪深300+%s中债国债总财富指数"%(str(weightSe['000300.SH']*100)+'%',str(weightSe['CBA00601.CS']*100)+'%')
-
-        pofolioAndBench = pd.concat([portfolioSe, benchSe,totalPofolio,tempBench], axis=1, join='inner')
+        pofolioAndBench = pd.concat([portfolioSe, benchSe,totalPofolio,tempBench,benchSe1], axis=1, join='inner')
 
         CalcRiskReturnToExcelDemo = CalcRiskReturnToExcel()
         newFold = self.fileMake(newFoldName=method)
@@ -171,8 +179,11 @@ class fundPortfolio:
         ax1.grid()
         ax1.set_title(nameStr)
         pofolioAndBenchAcc = (1 + pofolioAndBench).cumprod()
+        dateList = [datetime.strptime(dateStr,'%Y-%m-%d') for dateStr in pofolioAndBenchAcc.index]
+        pofolioAndBenchAcc = pd.DataFrame(pofolioAndBenchAcc.values,index=dateList,columns=pofolioAndBenchAcc.columns)
         pofolioAndBenchAcc.plot(ax=ax1)
 
+        # pofolioAndBenchAcc[[u'投资组合',u'沪深300',u'60.0%沪深300+40.0%中债国债总财富指数',u'中债国债总财富指数']].plot(ax=ax1)
         ax2 = fig.add_subplot(212)
         color = ['#36648B', '#458B00', '#7A378B', '#8B0A50', '#8FBC8F', '#B8860B', '#FFF68F', '#FFF5EE', '#FFF0F5',
                  '#FFEFDB']
@@ -187,7 +198,7 @@ class fundPortfolio:
             tick.set_rotation(90)
 
         plt.savefig(newFold + ('%s.png' % (nameStr)))
-        plt.show()
+        # plt.show()
         result['pofolioAndBench'] = pofolioAndBench
         result['riskReturndf'] = riskReturndf
         result['positionDf'] = positionDf
@@ -200,7 +211,9 @@ if __name__ == '__main__':
        equal_weight min_variance,risk_parity，max_diversification，mean_var,target_maxdown,target_risk
     '''
     fundPortfolioDemo = fundPortfolio()
-    # fundPortfolioDemo.setMain(method='risk_parity')
-    fundPortfolioDemo.setMain(method='target_risk', rate=0.5)
-    # for rate in np.linspace(start=0,stop=0.5,num=30):
-    #     fundPortfolioDemo.setMain(method='target_maxdown',rate=rate)
+    fundPortfolioDemo.setMain(method='risk_parity')
+    # fundPortfolioDemo.setMain(method='target_risk', rate=0.5)
+
+    # for rate in np.linspace(start=0,stop=1,num=20):
+        # fundPortfolioDemo.setMain(method='target_maxdown',rate=rate)
+        # fundPortfolioDemo.setMain(method='risk_parity', rate=rate)
