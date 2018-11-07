@@ -108,7 +108,7 @@ class SetPortfolio:
         dicResult['000300.SH'] = ['270010.OF']
         dicResult['000905.SH'] = ['162711.OF','110026.OF']
         dicResult['SPX.GI'] = ['270042.OF']
-        dicResult['CBA00601.CS'] = ['050011.OF']
+        dicResult['CBA00601.CS'] = ['001021.OF']
         # dicResult['AU9999.SGE'] = ['002610.OF']
         dicResult['AU9999.SGE'] = ['518800.OF']
 
