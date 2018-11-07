@@ -11,7 +11,8 @@ def getFundPool():
     dicProduct['005424'] = u'汇金聚禄一年定期开放债券型证券投资基金C'
     dicProduct['005423'] = u'汇金聚禄一年定期开放债券型证券投资基金A'
 
-    dicProduct['050011'] = u'博时信用债券A'
+    # dicProduct['050011'] = u'博时信用债券A'
+    dicProduct['001021'] = u'华夏亚债中国A'
     dicProduct['002806'] = u'汇金聚利1年定期C类'
     dicProduct['002987'] = u'广发300基金联接C类'
 
