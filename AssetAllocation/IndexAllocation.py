@@ -46,7 +46,7 @@ def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**mode
         assetStd = (returnDf.std().max() - returnDf.std().min())*np.sqrt(250)*rate
     elif method == 'risk_parity':
         riskAr = []             #对国内股票看重的程度
-        if modelParam['allocationParam'] == 'equal':
+        if not modelParam or modelParam['allocationParam'] == 'equal':
             riskAr = [1/returnDf.shape[1]]*returnDf.shape[1]
         else:
             riskRate = modelParam['allocationParam']
@@ -83,7 +83,11 @@ def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**mode
     def fun4(x):
         port_returns = np.sum(returnDf.mean() * x) * 252
         port_variance = np.sqrt(252 * np.matrix(x) * omega * np.matrix(x).T)
-        return -port_returns / port_variance
+
+        # result = -port_returns / port_variance
+        result = -(port_returns-100*(port_variance))
+
+        return result
 
     def fun5(x):
         port_returns = -np.sum(returnDf.mean() * x) * 252
@@ -104,6 +108,7 @@ def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**mode
     elif method == 'equal_weight':
         return pd.Series(index=cov_mat.index, data=1.0 / cov_mat.shape[0])
     elif method == 'mean_var':
+        bnds = tuple((0, 0.4) for x in x0)
         res = minimize(fun4, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options)
     elif method == 'target_maxdown':
         cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1},

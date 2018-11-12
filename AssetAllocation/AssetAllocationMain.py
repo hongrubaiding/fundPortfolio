@@ -12,7 +12,7 @@ import AssetAllocation.IndexAllocation as IA
 import matplotlib.pyplot as plt
 import matplotlib
 from PrintInfo import PrintInfo
-from CalcRiskReturnToExcel import CalcRiskReturnToExcel
+from AssetAllocation.CalcRiskReturnToExcel import CalcRiskReturnToExcel
 
 matplotlib.rcParams['font.sans-serif'] = ['SimHei']
 matplotlib.rcParams['font.family'] = 'sans-serif'
@@ -97,7 +97,7 @@ class AssetAllocationMain:
         return totalPofolio, weightDf
 
     # 绘图
-    def plotFigure(self, totalPofolio, weightDf,):
+    def plotFigure(self, totalPofolio, weightDf,method):
         fig = plt.figure(figsize=(16, 12))
         ax1 = fig.add_subplot(211)
         color = ['r', 'g', 'b', 'y', 'k', 'c', ]
@@ -114,22 +114,26 @@ class AssetAllocationMain:
         # CalcRiskReturnToExcelDemo = CalcRiskReturnToExcel()
         # CalcRiskReturnToExcelDemo.GoMain(pofolioAndBench,toExcelPath='C:\\Users\\lenovo\\Desktop\\大类资产配置结果\\' + self.method + '.xls')
         (1 + pofolioAndBench).cumprod().plot(ax=ax2)
-        plt.title(self.method)
+        plt.title(method)
         # plt.savefig('C:\\Users\\lenovo\\Desktop\\大类资产配置走势图\\' + self.method)
         plt.show()
 
-    def calcMain(self,method='risk_parity',**IndexAllocationParam):
+    def calcMain(self,method='mean_var',**IndexAllocationParam):
         # 主函数入口
         indexDataDf = self.getHisData()
 
         # 收益率序列
         self.indexReturnDf = (indexDataDf - indexDataDf.shift(1)) / indexDataDf.shift(1)
 
+        # tempDf = self.indexReturnDf.rename(columns=self.assetIndex)
+        # corrdf = tempDf.corr()
+
         # 组合业绩回测
         totalPofolio, weightDf = self.calcAssetAllocation(method,IndexAllocationParam)
 
         if self.plotFlag:
-            self.plotFigure(totalPofolio, weightDf, self.indexReturnDf)
+            # corrdf.to_excel('C:\\Users\\lenovo\\Desktop\\大类资产相关系数.xls')
+            self.plotFigure(totalPofolio, weightDf,method)
         return totalPofolio, weightDf
 
 

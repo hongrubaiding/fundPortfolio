@@ -10,6 +10,8 @@ import pandas as pd
 from datetime import datetime,date
 import numpy as np
 from PrintInfo import PrintInfo
+
+
 import matplotlib.pylab as plt
 
 class SetPortfolio:

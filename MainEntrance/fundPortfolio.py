@@ -15,10 +15,10 @@ from AssetAllocation.AssetAllocationMain import AssetAllocationMain
 from fundSelect.SetPortfolio import SetPortfolio
 import matplotlib.pylab as plt
 from PrintInfo import PrintInfo
+from AssetAllocation.CalcRiskReturnToExcel import CalcRiskReturnToExcel
 import os
 import warnings
 warnings.filterwarnings("ignore")
-from CalcRiskReturnToExcel import CalcRiskReturnToExcel
 
 
 class fundPortfolio:
@@ -120,7 +120,6 @@ class fundPortfolio:
             nameStr = ' rate= ' + str(AllocationParam)  # 图片标题名称和excel的sheet名称
         else:
             nameStr = method
-
 
         AssetAllocationMainDemo = AssetAllocationMain()
         totalPofolio, IndexWeightDf = AssetAllocationMainDemo.calcMain(method=method,AllocationParam=AllocationParam)
