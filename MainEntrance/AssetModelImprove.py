@@ -33,7 +33,6 @@ class AssetModelImprove:
         pickleFile.close()
         return modelResult
 
-
     #获取本地运行数据或运行程序
     def getData(self,method):
         try:
@@ -57,8 +56,6 @@ class AssetModelImprove:
 
         # 所有投资组合历史回测数据
         portFolioDf = pd.concat(dflist, axis=1)
-        dateList = [datetime.strptime(dateStr, '%Y-%m-%d') for dateStr in portFolioDf.index]
-        portFolioDf = pd.DataFrame(portFolioDf.values, index=dateList, columns=portFolioDf.columns)
         return returnAndRiskTotal,portFolioDf
 
     #绘制风险收益指标与rate走势图
@@ -83,7 +80,6 @@ class AssetModelImprove:
                 axNum.set_ylabel(riskReturnIndex)
                 namePosition = newFolder + ('%s.png' % (method + riskReturnIndex))
             plt.savefig(namePosition)
-
 
     # 所有投资组合历史回测数据研究与绘图
     def researchTotalPortfolio(self,portFolioDf,method,newFolder):
