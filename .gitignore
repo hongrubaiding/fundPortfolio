@@ -1,2 +1,4 @@
 *.log
 *.xlsx
+.pkl
+.gitignore
