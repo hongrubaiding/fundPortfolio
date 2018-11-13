@@ -6,13 +6,10 @@
 
 import pandas as pd
 import numpy as np
-from WindPy import w
-from datetime import datetime
 import AssetAllocation.IndexAllocation as IA
-import matplotlib.pyplot as plt
 import matplotlib
 from PrintInfo import PrintInfo
-from AssetAllocation.CalcRiskReturnToExcel import CalcRiskReturnToExcel
+from AssetAllocation.GetIndexData import GetIndexData
 
 matplotlib.rcParams['font.sans-serif'] = ['SimHei']
 matplotlib.rcParams['font.family'] = 'sans-serif'
@@ -21,16 +18,11 @@ matplotlib.rcParams['axes.unicode_minus'] = False
 
 class AssetAllocationMain:
     def __init__(self):
-        self.assetIndex = self.getParam()
         self.startDate = '2006-01-01'
         self.endDate = '2017-06-01'  # 回测截止时间
 
-        '''equal_weight min_variance,risk_parity，max_diversification，mean_var,target_maxdown,target_risk
-         '''
-        # self.method = method  # 大类资产配置模型
         self.plotFlag = False  # 是否绘图
         self.PrintInfoDemo = PrintInfo()  # 日志信息模块
-        self.allocationFlag = False         #是否传入了大类资产配置模型的个性化参数
 
     def getParam(self):
         # 获取初始参数
@@ -38,40 +30,19 @@ class AssetAllocationMain:
         assetIndex['000016.SH'] = u'上证50'
         assetIndex['000300.SH'] = u'沪深300'
         assetIndex['000905.SH'] = u'中证500'
-        assetIndex['SPX.GI'] = u'标普500'
+        # assetIndex['SPX.GI'] = u'标普500'
         assetIndex['CBA00601.CS'] = u'中债国债总财富指数'
         assetIndex['AU9999.SGE'] = u'黄金9999'
         return assetIndex
-
-    def getHisData(self):
-        # 本地或wind获取大类资产历史数据
-        try:
-            indexDataDf = pd.read_excel(
-                r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\AssetAllocation\\indexDataDf.xlsx")
-            self.PrintInfoDemo.PrintLog(infostr='本地读取大类指数历史数据 indexDataDf ')
-            return indexDataDf
-        except:
-            self.PrintInfoDemo.PrintLog(infostr='wind读取大类指数历史数据 indexDataDf ')
-            w.start()
-            indexData = w.wsd(codes=list(self.assetIndex.keys()), fields=['close'], beginTime=self.startDate,
-                              endTime=self.endDate)
-            if indexData.ErrorCode != 0:
-                self.PrintInfoDemo.PrintLog(infostr='wind获取指数数据失败，错误代码： ',otherInfo=indexData.ErrorCode)
-                return
-
-            indexDataDf = pd.DataFrame(indexData.Data, index=indexData.Codes, columns=indexData.Times).T
-            writer = pd.ExcelWriter('indexDataDf.xlsx')
-            indexDataDf.to_excel(writer)
-            writer.save()
-            self.PrintInfoDemo.PrintLog(infostr='wind读取大类指数历史数据成功,写入本地文件indexDataDf.xlsx')
 
     # 回测资产配置
     def calcAssetAllocation(self,method,IndexAllocationParam={}):
         pofolioList = []  # 组合业绩表现
         weightList = []  # 组合各时间持仓
+        self.PrintInfoDemo.PrintLog(infostr='回测大类资产配置组合...... ')
         for k in range(250, self.indexReturnDf.shape[0], 21):
-            datestr = datetime.strftime(self.indexReturnDf.index.tolist()[k], '%Y-%m-%d')
-            self.PrintInfoDemo.PrintLog(infostr='回测当前日期： ',otherInfo=datestr)
+            datestr = self.indexReturnDf.index.tolist()[k]
+            # self.PrintInfoDemo.PrintLog(infostr='回测当前日期： ',otherInfo=datestr)
             tempReturnDF = self.indexReturnDf.iloc[k - 250:k]
 
             if k==250:
@@ -96,46 +67,18 @@ class AssetAllocationMain:
         self.PrintInfoDemo.PrintLog(infostr='回测完成！ ')
         return totalPofolio, weightDf
 
-    # 绘图
-    def plotFigure(self, totalPofolio, weightDf,method):
-        fig = plt.figure(figsize=(16, 12))
-        ax1 = fig.add_subplot(211)
-        color = ['r', 'g', 'b', 'y', 'k', 'c', ]
-        for i in range(weightDf.shape[1]):
-            ax1.bar(weightDf.index.tolist(), weightDf.ix[:, i], color=color[i], bottom=weightDf.ix[:, :i].sum(axis=1))
-
-        labels = [self.assetIndex[code] for code in weightDf.columns.tolist()]
-        ax1.legend(labels=labels, loc='best')
-        for tick in ax1.get_xticklabels():
-            tick.set_rotation(90)
-        ax2 = fig.add_subplot(212)
-
-        pofolioAndBench = pd.concat([totalPofolio, self.indexReturnDf['000300.SH']], axis=1, join='inner')
-        # CalcRiskReturnToExcelDemo = CalcRiskReturnToExcel()
-        # CalcRiskReturnToExcelDemo.GoMain(pofolioAndBench,toExcelPath='C:\\Users\\lenovo\\Desktop\\大类资产配置结果\\' + self.method + '.xls')
-        (1 + pofolioAndBench).cumprod().plot(ax=ax2)
-        plt.title(method)
-        # plt.savefig('C:\\Users\\lenovo\\Desktop\\大类资产配置走势图\\' + self.method)
-        plt.show()
-
     def calcMain(self,method='mean_var',**IndexAllocationParam):
         # 主函数入口
-        indexDataDf = self.getHisData()
+        self.assetIndex = self.getParam()
+        GetIndexDataDemo = GetIndexData()
+        indexDataDf = GetIndexDataDemo.getHisData(indexCodeList=list(self.assetIndex.keys()),startDate=self.startDate,endDate=self.endDate)
 
         # 收益率序列
         self.indexReturnDf = (indexDataDf - indexDataDf.shift(1)) / indexDataDf.shift(1)
 
-        # tempDf = self.indexReturnDf.rename(columns=self.assetIndex)
-        # corrdf = tempDf.corr()
-
         # 组合业绩回测
         totalPofolio, weightDf = self.calcAssetAllocation(method,IndexAllocationParam)
-
-        if self.plotFlag:
-            # corrdf.to_excel('C:\\Users\\lenovo\\Desktop\\大类资产相关系数.xls')
-            self.plotFigure(totalPofolio, weightDf,method)
         return totalPofolio, weightDf
-
 
 if __name__ == '__main__':
     AssetAllocationDemo = AssetAllocationMain()
