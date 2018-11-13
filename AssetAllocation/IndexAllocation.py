@@ -9,6 +9,9 @@ from PrintInfo import PrintInfo
 PrintInfoDemo = PrintInfo()
 
 def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**modelParam):
+    # PrintInfoDemo.PrintLog('IndexAllocation : ',method)
+
+
     '''
     功能：输入协方差矩阵，得到不同优化方法下的权重配置
     输入：
@@ -53,12 +56,14 @@ def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**mode
             for indexName in returnDf.columns:
                  if indexName in ['000016.SH','000300.SH','000905.SH']:
                      riskAr.append(riskRate/3)
+                 # else:
+                 #     riskAr.append((1-riskRate)/(returnDf.shape[1]-3))
                  elif indexName != 'CBA00601.CS':
                      riskAr.append((1-riskRate)*0.98/(returnDf.shape[1]-4))
                  else:
                      riskAr.append((1-riskRate)*0.02)
 
-            print('riskAr:',riskAr)
+            # print('riskAr:',riskAr)
 
     # 定义目标函数
     def fun1(x):  # 组合总风险
@@ -85,8 +90,7 @@ def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**mode
         port_variance = np.sqrt(252 * np.matrix(x) * omega * np.matrix(x).T)
 
         # result = -port_returns / port_variance
-        result = -(port_returns-100*(port_variance))
-
+        result = -(port_returns-10*(port_variance))
         return result
 
     def fun5(x):
@@ -123,8 +127,9 @@ def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**mode
 
     # 权重调整
     if res['success'] == False:
-        PrintInfoDemo.PrintLog(infostr="minize result：",otherInfo=res['message'])
+        # PrintInfoDemo.PrintLog(infostr="minize result：",otherInfo=res['message'])
         # print("minize result：",res['message'])
+        pass
 
     wts = pd.Series(index=cov_mat.index, data=res['x'])
     if wts_adjusted == True:
