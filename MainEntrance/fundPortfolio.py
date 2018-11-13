@@ -30,8 +30,9 @@ class fundPortfolio:
     # 获取投资组合调仓期内的权重
     def getPortfolioWeightDf(self, IndexWeightDf, dicResult, resultDf):
         usefulNetDf = resultDf.dropna(axis=0)
-        timeList = [tempTime.strftime('%Y-%m-%d') for tempTime in usefulNetDf.index.tolist()]
-        usefulNetDf = pd.DataFrame(usefulNetDf.values, index=timeList, columns=usefulNetDf.columns)
+        # timeList = [tempTime.strftime('%Y-%m-%d') for tempTime in usefulNetDf.index.tolist()]
+        # usefulNetDf = pd.DataFrame(usefulNetDf.values, index=timeList, columns=usefulNetDf.columns)
+        timeList = usefulNetDf.index.tolist()
 
         # 找到第一个持仓日
         totalDate = IndexWeightDf.index.tolist()
@@ -105,12 +106,14 @@ class fundPortfolio:
     def getBigAsset(self,method,param):
         # 生成大类资产配置模块
         self.PrintInfoDemo.PrintLog(infostr='大类资产配置模型 ', otherInfo=method)
+        defineFlag = False
         if method == 'target_maxdown' or method == 'target_risk':
             if param:
                 AllocationParam = param['rate']
             else:
                 AllocationParam = 0.3
             nameStr = ' rate= ' + str(AllocationParam)  # 图片标题名称和excel的sheet名称
+            defineFlag = True
 
         elif method == 'risk_parity':
             if param:
@@ -118,11 +121,15 @@ class fundPortfolio:
             else:
                 AllocationParam = 'equal'
             nameStr = ' rate= ' + str(AllocationParam)  # 图片标题名称和excel的sheet名称
+            defineFlag = True
         else:
             nameStr = method
 
         AssetAllocationMainDemo = AssetAllocationMain()
-        totalPofolio, IndexWeightDf = AssetAllocationMainDemo.calcMain(method=method,AllocationParam=AllocationParam)
+        if defineFlag:
+            totalPofolio, IndexWeightDf = AssetAllocationMainDemo.calcMain(method=method,AllocationParam=AllocationParam)
+        else:
+            totalPofolio, IndexWeightDf = AssetAllocationMainDemo.calcMain(method=method,)
         self.PrintInfoDemo.PrintLog(infostr='大类资产配置模型初始化完成！')
         return AssetAllocationMainDemo,totalPofolio,IndexWeightDf,nameStr
 
@@ -142,65 +149,78 @@ class fundPortfolio:
         self.PrintInfoDemo.PrintLog(infostr='目标产品池回测完成！ ')
         return portfolioSe,positionDf,SetPortfolioDemo,usefulNetDf
 
-    def setMain(self,method='risk_parity',**param):
-        result = {}  # 保留结果
-        AssetAllocationMainDemo, totalPofolio, IndexWeightDf, nameStr = self.getBigAsset(method=method,param=param)
-        totalPofolioDate = [dateFormat.strftime('%Y-%m-%d') for dateFormat in totalPofolio.index]
-        totalPofolio = pd.Series(totalPofolio.values,index=totalPofolioDate)
-        totalPofolio.name = u'大类资产组合'
-        portfolioSe, positionDf,SetPortfolioDemo,usefulNetDf = self.getFundPool(AssetAllocationMainDemo,IndexWeightDf)
-
-        # 投资组合绘图与风险指标计算
-        indexReturnDf = AssetAllocationMainDemo.indexReturnDf
-        dateList = [dateFormat.strftime('%Y-%m-%d') for dateFormat in indexReturnDf['000300.SH'].index]
-        benchSe = pd.Series(indexReturnDf['000300.SH'].values, index=dateList)
-        benchSe.name = u'沪深300'
-
-        benchSe1 = pd.Series(indexReturnDf['CBA00601.CS'].values, index=dateList)
-        benchSe1.name = u'中债国债总财富指数'
-
-        weightSe = pd.Series([0.6,0.4],index=['000300.SH','CBA00601.CS'])
-        tempBench = indexReturnDf[['000300.SH','CBA00601.CS']]*weightSe
-        tempBench = tempBench.sum(axis=1)
-        tempBench = pd.Series(tempBench.values, index=dateList)
-        tempBench.name = "%s沪深300+%s中债国债总财富指数"%(str(weightSe['000300.SH']*100)+'%',str(weightSe['CBA00601.CS']*100)+'%')
-        pofolioAndBench = pd.concat([portfolioSe, benchSe,totalPofolio,tempBench,benchSe1], axis=1, join='inner')
-
+    def riskAndReturnCalc(self,method,nameStr,pofolioAndBench,newFold):
         CalcRiskReturnToExcelDemo = CalcRiskReturnToExcel()
-        newFold = self.fileMake(newFoldName=method)
         filePath = newFold + '风险收益指标' + nameStr + '.xls'
-        riskReturndf = CalcRiskReturnToExcelDemo.GoMain(pofolioAndBench,toExcelPath=filePath)
+        riskReturndf = CalcRiskReturnToExcelDemo.GoMain(pofolioAndBench, toExcelPath=filePath)
         self.PrintInfoDemo.PrintLog(infostr="投资组合风险收益指标: ", otherInfo=riskReturndf)
+        return riskReturndf
 
-        fig = plt.figure()
-        fig.set_size_inches(6.4, 7.5)
+    def plotFigureResult(self,nameStr,pofolioAndBench,tempPositionDf,newFold,labels):
+        fig = plt.figure(figsize=(16,9))
+        # fig.set_size_inches(6.4, 7.5)
         ax1 = fig.add_subplot(211)
-        ax1.grid()
-        ax1.set_title(nameStr)
         pofolioAndBenchAcc = (1 + pofolioAndBench).cumprod()
-        dateList = [datetime.strptime(dateStr,'%Y-%m-%d') for dateStr in pofolioAndBenchAcc.index]
-        pofolioAndBenchAcc = pd.DataFrame(pofolioAndBenchAcc.values,index=dateList,columns=pofolioAndBenchAcc.columns)
         pofolioAndBenchAcc.plot(ax=ax1)
 
-        # pofolioAndBenchAcc[[u'投资组合',u'沪深300',u'60.0%沪深300+40.0%中债国债总财富指数',u'中债国债总财富指数']].plot(ax=ax1)
+        box = ax1.get_position()
+        ax1.set_position([box.x0, box.y0, box.width*1.02, box.height])
+        ax1.legend(bbox_to_anchor=(1.28, 0.8), ncol=1)
+        ax1.grid()
+        ax1.set_title(nameStr)
+
         ax2 = fig.add_subplot(212)
         color = ['#36648B', '#458B00', '#7A378B', '#8B0A50', '#8FBC8F', '#B8860B', '#FFF68F', '#FFF5EE', '#FFF0F5',
                  '#FFEFDB']
-        for i in range(positionDf.shape[1]):
-            ax2.bar(positionDf.index.tolist(), positionDf.ix[:, i], color=color[i],
-                    bottom=positionDf.ix[:, :i].sum(axis=1))
 
-        labels = [SetPortfolioDemo.dicProduct[code[:6]] for code in positionDf.columns.tolist()]
-        ax2.legend(labels=labels, loc='SouthEastOutside')
+        datestrList = [datetime.strftime(dateStr, '%Y-%m-%d') for dateStr in tempPositionDf.index.tolist()]
+        for i in range(tempPositionDf.shape[1]):
+            ax2.bar(datestrList, tempPositionDf.ix[:, i], color=color[i],
+                    bottom=tempPositionDf.ix[:, :i].sum(axis=1))
+
+        box = ax2.get_position()
+        ax2.set_position([box.x0, box.y0, box.width * 1.02, box.height])
+        ax2.legend(labels=labels,bbox_to_anchor=(1, 0.8), ncol=1)
 
         for tick in ax2.get_xticklabels():
             tick.set_rotation(90)
 
+        plt.tight_layout()
         plt.savefig(newFold + ('%s.png' % (nameStr)))
-        # plt.show()
+        plt.show()
+
+    def setMain(self,method='risk_parity',productFlag=True,**param):
+        result = {}  # 保留结果
+        AssetAllocationMainDemo, totalPofolio, IndexWeightDf, nameStr = self.getBigAsset(method=method,param=param)
+        totalPofolio.name = u'大类资产组合'
+
+        # 投资组合绘图与风险指标计算
+        indexReturnDf = AssetAllocationMainDemo.indexReturnDf
+        indexDf1 = indexReturnDf[['000300.SH', 'CBA00601.CS']]
+        indexDf1.rename(columns={'000300.SH': u'沪深300', 'CBA00601.CS': u'中债国债总财富指数'},inplace=True)
+
+        weightSe = pd.Series([0.6, 0.4], index=['000300.SH', 'CBA00601.CS'])
+        indexDf2 = (indexReturnDf[['000300.SH', 'CBA00601.CS']] * weightSe).sum(axis=1)
+        indexDf2.name = u"%s沪深300+%s中债国债总财富指数" % ( str(weightSe['000300.SH'] * 100) + '%', str(weightSe['CBA00601.CS'] * 100) + '%')
+        indexDf = pd.concat([indexDf1, indexDf2], axis=1, join='inner').fillna(0)
+
+        newFold = self.fileMake(newFoldName=method)
+        if productFlag:
+            portfolioSe, positionDf,SetPortfolioDemo,usefulNetDf = self.getFundPool(AssetAllocationMainDemo,IndexWeightDf)
+            pofolioAndBench = pd.concat([indexDf,portfolioSe,totalPofolio], axis=1, join='inner')
+            labels = [SetPortfolioDemo.dicProduct[code[:6]] for code in positionDf.columns.tolist()]
+            tempPositionDf = positionDf
+        else:
+            pofolioAndBench = pd.concat([indexDf,totalPofolio], axis=1, join='inner')
+            labels = [AssetAllocationMainDemo.assetIndex[code] for code in IndexWeightDf.columns.tolist()]
+            tempPositionDf = IndexWeightDf
+
+        self.plotFigureResult(nameStr, pofolioAndBench, tempPositionDf, newFold,labels)
+        riskReturndf = self.riskAndReturnCalc(method=method,nameStr=nameStr,pofolioAndBench=pofolioAndBench,newFold=newFold)
+
         result['pofolioAndBench'] = pofolioAndBench
         result['riskReturndf'] = riskReturndf
-        result['positionDf'] = positionDf
+        result['positionDf'] = tempPositionDf
         return result
 
 
@@ -209,10 +229,9 @@ if __name__ == '__main__':
     '''
        equal_weight min_variance,risk_parity，max_diversification，mean_var,target_maxdown,target_risk
     '''
+    productFlag = True             #是否到具体产品
     fundPortfolioDemo = fundPortfolio()
-    fundPortfolioDemo.setMain(method='risk_parity')
-    # fundPortfolioDemo.setMain(method='target_risk', rate=0.5)
+    # fundPortfolioDemo.setMain(method='risk_parity')
+    fundPortfolioDemo.setMain(method='risk_parity', productFlag=productFlag,rate=0.97777)
 
-    # for rate in np.linspace(start=0,stop=1,num=20):
-        # fundPortfolioDemo.setMain(method='target_maxdown',rate=rate)
-        # fundPortfolioDemo.setMain(method='risk_parity', rate=rate)
+
