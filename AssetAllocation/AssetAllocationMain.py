@@ -9,7 +9,9 @@ import numpy as np
 import AssetAllocation.IndexAllocation as IA
 import matplotlib
 from PrintInfo import PrintInfo
-from AssetAllocation.GetIndexData import GetIndexData
+# from AssetAllocation.GetIndexData import GetIndexData
+from datetime import date
+from GetHistoryData.GetIndexData import GetIndexData
 
 matplotlib.rcParams['font.sans-serif'] = ['SimHei']
 matplotlib.rcParams['font.family'] = 'sans-serif'
@@ -19,7 +21,8 @@ matplotlib.rcParams['axes.unicode_minus'] = False
 class AssetAllocationMain:
     def __init__(self):
         self.startDate = '2006-01-01'
-        self.endDate = '2017-06-01'  # 回测截止时间
+        # self.endDate = '2017-06-01'  # 回测截止时间
+        self.endDate = date.today().strftime('%Y-%m-%d')
 
         self.plotFlag = False  # 是否绘图
         self.PrintInfoDemo = PrintInfo()  # 日志信息模块
