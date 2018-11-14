@@ -10,7 +10,6 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, date
-import AssetAllocation.AssetAllocationMain as AssetAllocationMain
 from AssetAllocation.AssetAllocationMain import AssetAllocationMain
 from fundSelect.SetPortfolio import SetPortfolio
 import matplotlib.pylab as plt
@@ -30,8 +29,6 @@ class fundPortfolio:
     # 获取投资组合调仓期内的权重
     def getPortfolioWeightDf(self, IndexWeightDf, dicResult, resultDf):
         usefulNetDf = resultDf.dropna(axis=0)
-        # timeList = [tempTime.strftime('%Y-%m-%d') for tempTime in usefulNetDf.index.tolist()]
-        # usefulNetDf = pd.DataFrame(usefulNetDf.values, index=timeList, columns=usefulNetDf.columns)
         timeList = usefulNetDf.index.tolist()
 
         # 找到第一个持仓日
@@ -188,6 +185,8 @@ class fundPortfolio:
         plt.tight_layout()
         plt.savefig(newFold + ('%s.png' % (nameStr)))
         plt.show()
+
+
 
     def setMain(self,method='risk_parity',productFlag=True,**param):
         result = {}  # 保留结果
