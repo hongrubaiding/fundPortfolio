@@ -5,14 +5,11 @@
 '''
 
 from fundSelect import fundPool
-from WindPy import w
 import pandas as pd
 from datetime import datetime,date
 import numpy as np
 from PrintInfo import PrintInfo
-
-
-import matplotlib.pylab as plt
+from GetHistoryData.GetProductData import GetProductData
 
 class SetPortfolio:
     def __init__(self,assetIndex={},backDate=date.today().strftime('%Y-%m-%d')):
@@ -21,62 +18,6 @@ class SetPortfolio:
         self.backDate = backDate
         self.assetIndex = assetIndex    #大类资产指数
         self.PrintInfoDemo = PrintInfo()  # 日志信息模块
-
-    # 获取基金池的基本信息
-    def getFundInfo(self):
-        try:
-            fundInfoDf = pd.read_excel(r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\fundSelect\\fundInfoDf.xlsx")
-            self.PrintInfoDemo.PrintLog(infostr='本地读取基金历史信息数据 fundInfoDf')
-            return fundInfoDf
-        except:
-            w.start()
-            self.PrintInfoDemo.PrintLog(infostr='wind读取基金历史信息数据 fundInfoDf')
-            codeList = list(self.dicProduct.keys())
-            codeList = [code + '.OF' for code in codeList]
-            filedList = ['fund_setupdate', 'fund_fundscale', 'fund_scaleranking', 'fund_mgrcomp', 'fund_type',
-                         'fund_fundmanager', 'fund_structuredfundornot',
-                         'fund_firstinvesttype', 'fund_investtype', 'fund_risklevel', 'fund_similarfundno',
-                         'fund_manager_geometricavgannualyieldoverbench', 'risk_sharpe',
-                         'fund_managementfeeratio', 'fund_fullname', 'fund_custodianfeeratio',
-                         'NAV_periodicannualizedreturn', 'fund_manager_managerworkingyears', 'fund_benchmark',
-                         'fund_benchindexcode',
-                         'fund_initial']
-            options = "fundType=3;order=1;returnType=1;startDate=20180813;endDate=20180913;period=2;riskFreeRate=1"
-            fundInfo = w.wss(codes=codeList, fields=filedList, options=options)
-            if fundInfo.ErrorCode != 0:
-                self.PrintInfoDemo.PrintLog(infostr='wind读取基金历史信息数据失败，错误代码：',otherInfo=fundInfo.ErrorCode)
-                return pd.DataFrame()
-            fundInfoDf = pd.DataFrame(fundInfo.Data, index=fundInfo.Fields, columns=codeList).T
-            writer = pd.ExcelWriter(r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\fundSelect\\fundInfoDf.xlsx")
-            fundInfoDf.to_excel(writer)
-            writer.save()
-            self.PrintInfoDemo.PrintLog(infostr='wind读取基金历史信息数据成功，写入本地文件fundInfoDf.xlsx')
-            return fundInfoDf
-
-    #获取基金池的历史净值数据
-    def getFundNetValue(self,startTime):
-        try:
-            fundNetValueDF = pd.read_excel(r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\fundSelect\\fundNetValueDF.xlsx")
-            self.PrintInfoDemo.PrintLog(infostr='本地读取基金净值数据 fundNetValueDF')
-            return fundNetValueDF
-        except:
-            w.start()
-            self.PrintInfoDemo.PrintLog(infostr='wind读取基金净值数据 fundNetValueDF')
-            codeList = list(self.dicProduct.keys())
-            codeList = [code + '.OF' for code in codeList]
-            filed = 'NAV_adj'       #复权单位净值
-            fundNetValue = w.wsd(codes=codeList,fields=filed,beginTime=startTime,endTime=datetime.today(),options='Fill=Previous')
-
-            if fundNetValue.ErrorCode != 0:
-                self.PrintInfoDemo.PrintLog(infostr='wind读取基金净值数据失败，错误代码： ',otherInfo=fundNetValue.ErrorCode)
-                return pd.DataFrame()
-            fundNetValueDf = pd.DataFrame(fundNetValue.Data, index=fundNetValue.Codes, columns=fundNetValue.Times).T
-            fundNetValueDf[fundNetValueDf==-2] = np.nan
-            writer = pd.ExcelWriter(r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\fundSelect\\fundNetValueDF.xlsx")
-            fundNetValueDf.to_excel(writer)
-            writer.save()
-            self.PrintInfoDemo.PrintLog(infostr='wind读取基金净值数据成功，写入本地文件fundNetValueDF.xlsx ')
-            return fundNetValueDf
 
     #初步过滤基金池，并对基金池归类
     def firstSelect(self, fundInfoDf):
@@ -132,9 +73,10 @@ class SetPortfolio:
         return fundNetValueUpdateDf
 
     def goMain(self):
-        fundInfoDf = self.getFundInfo()
+        GetProductDataDemo = GetProductData()
+        fundInfoDf = GetProductDataDemo.getFundInfo(productList=list(self.dicProduct.keys()))
         startTime = fundInfoDf['FUND_SETUPDATE'].min()
-        fundNetValueDf = self.getFundNetValue(startTime)
+        fundNetValueDf = GetProductDataDemo.getFundNetValue(startTime,productList=list(self.dicProduct.keys()))
         fundNetValueUpdateDf = self.settleFundNetValue(fundInfoDf,fundNetValueDf)
         dicFundDf = self.firstSelect(fundInfoDf)
         dicResult, resultDf = self.secondSelect(dicFundDf,fundNetValueUpdateDf)
