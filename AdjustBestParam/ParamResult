@@ -1,0 +1,36 @@
+mean_var:
+assetIndex['stock'] = {'000300.SH': u'沪深300', '000905.SH': u'中证500', 'HSI.HI': '恒生指数', 'SPX.GI': '标普500'}
+            assetIndex['bond'] = {'H00140.SH': u'上证五年期国债指数'}
+            assetIndex['commodity'] = {'AU9999.SGE': u'黄金9999', 'SPSIOP.SPI': "标普石油天然气指数"}
+100%|██████████| 1000/1000 [1:12:25<00:00,  4.35s/trial, best loss: -1.7495258142902819]
+19-42-2020 19:42:39 FindBestParam.py:INFO:{'adjust_day_limit': 57, 'back_day_limit': 173, 'bond_limit': 0.11894184501539762, 'com_limit': 0.5140217375179348}
+100%|██████████| 1000/1000 [1:18:45<00:00,  4.73s/trial, best loss: -1.7594346401176608]
+19-54-2020 21:54:34 FindBestParam.py:INFO:{'adjust_day_limit': 87, 'back_day_limit': 172, 'bond_limit': 0.010616510925441365, 'com_limit': 0.7860539304546363}
+
+
+risk_parity
+assetIndex['stock'] = {'000300.SH': u'沪深300', '000905.SH': u'中证500', 'HSI.HI': '恒生指数', 'SPX.GI': '标普500'}
+            assetIndex['bond'] = {'H00140.SH': u'上证五年期国债指数'}
+            assetIndex['commodity'] = {'AU9999.SGE': u'黄金9999', 'SPSIOP.SPI': "标普石油天然气指数"}
+100%|██████████| 1000/1000 [1:01:27<00:00,  3.69s/trial, best loss: -1.6681775491924697]
+19-32-2020 19:32:02 FindBestParam.py:INFO:{'adjust_day_limit': 26, 'back_day_limit': 73, 'bond_limit': 0.82550849050036, 'com_limit': 0.5151398996281533}
+100%|██████████| 1000/1000 [1:27:50<00:00,  5.27s/trial, best loss: -1.6297441019971628]
+19-04-2020 22:04:06 FindBestParam.py:INFO:{'adjust_day_limit': 31, 'back_day_limit': 54, 'bond_limit': 0.043636716503196366, 'com_limit': 0.62060035997143}
+38%|███▊      | 7672/20000 [10:33:25<29:05:26,  8.50s/trial, best loss: -1.8967631922427128]
+{'adjust_day_limit': 40, 'back_day_limit': 50, 'bond_limit': 0.010969236016368823, 'com_limit': 0.5481534375873586}
+
+fix_rate
+assetIndex['stock'] = {'000300.SH': u'沪深300', '000905.SH': u'中证500', "000852.SH":"中证1000"}
+            assetIndex['bond'] = {'H00140.SH': u'上证五年期国债指数'}
+100%|██████████| 400/400 [47:20<00:00,  7.10s/trial, best loss: -1.8845672847361785]
+19-20-2020 16:20:02 FindBestParam.py:INFO:{'adjust_day_limit': 13, 'back_day_limit': 12, 'fix_stock_weight': 0.5208520751888874, 'fix_stock_zf': 0.7708961619778893}
+
+
+recyle
+assetIndex['stock'] = {'000300.SH': u'沪深300', '000905.SH': u'中证500', "000852.SH": "中证1000"}
+            assetIndex['bond'] = {'H00140.SH': u'上证五年期国债指数'}
+19-21-2020 16:21:12 FindBestParam.py:INFO:{'adjust_day_limit': 57, 'adjust_maxdown': 0.1837216808980371, 'back_day_limit': 116, 'max_index_value_limit': 0.14759992099232416}
+100%|██████████| 400/400 [42:01<00:00,  6.30s/trial, best loss: -1.7613805522709467]
+
+{'adjust_day_limit': 13, 'adjust_maxdown': 0.14985207050237745, 'back_day_limit': 81, 'max_index_value_limit': 0.01803163980221814}  有风控
+57%|█████▋    | 11309/20000 [10:24:27<5:32:55,  2.30s/trial, best loss: -1.6407237227710194]

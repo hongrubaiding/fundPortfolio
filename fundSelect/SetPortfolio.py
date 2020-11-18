@@ -4,84 +4,93 @@
     代销公募基金基本信息和净值数据
 '''
 
-from fundSelect import fundPool
 import pandas as pd
-from datetime import datetime,date
+from datetime import datetime, date
 import numpy as np
-from PrintInfo import PrintInfo
-from GetHistoryData.GetProductData import GetProductData
+import mylog as mylog
+from GetAndSaveWindData.GetDataTotalMain import GetDataTotalMain
+
 
 class SetPortfolio:
-    def __init__(self,assetIndex={},backDate=date.today().strftime('%Y-%m-%d')):
-        self.dicProduct = fundPool.getFundPool()
-        self.getInfoFlag = True
-        self.backDate = backDate
-        self.assetIndex = assetIndex    #大类资产指数
-        self.PrintInfoDemo = PrintInfo()  # 日志信息模块
+    def __init__(self, assetIndex={}, ):
+        self.assetIndex = assetIndex  # 大类资产指数
+        self.logger = mylog.set_log()
 
-    #初步过滤基金池，并对基金池归类
-    def firstSelect(self, fundInfoDf):
-        def dateFormat(tempSe):
-            tempList = [tempSe[k].strftime('%Y-%m-%d') for k in tempSe.index.tolist()]
-            resutlt = pd.Series(tempList,index=tempSe.index)
-            return resutlt
+    def get_fund(self, fund_type='ETF'):
+        total_fund_df = pd.read_excel('被动指数型基金.xlsx')
+        dic_asset_df = {}
+        for bench_code, temp_df in total_fund_df.groupby(by='跟踪指数代码'):
+            if bench_code in self.assetIndex['stock']:
+                if fund_type == 'ETF':
+                    dic_asset_df[bench_code] = temp_df
 
-        #过滤掉成立日期小于指定日期的基金
-        fundInfoDf['FUND_SETUPDATE'] = dateFormat(fundInfoDf['FUND_SETUPDATE'])
-        fundDf = fundInfoDf.loc[fundInfoDf['FUND_SETUPDATE']<=self.backDate]
+    # 再次处理基金池,返回大类对应的产品和基金净值数据
+    def secondSelect(self, start_date, end_date, product_name_dic={},fund_type='ETF'):
+        if not product_name_dic:
+            dicResult = {}
+            if fund_type=='ETF':
+                dicResult['000300.SH'] = {"510300.SH": "300ETF"}
+                dicResult['000905.SH'] = {"510500.SH": "500ETF"}
+                dicResult['SPX.GI'] = {"513500.SH": "标普500"}
+                dicResult['HSI.HI'] = {"159920.SZ": "恒生ETF"}
+                dicResult['SPSIOP.SPI'] = {"162411.SZ": "华宝油气"}
+                dicResult['AU9999.SGE'] = {'518800.SH': "黄金ETF"}
+                dicResult['H00140.SH'] = {'511010.SH': "国债ETF "}
+                dicResult['000852.SH'] = {'512100.SH': "1000ETF "}
+            else:
+                # dicResult['000300.SH'] = {"002987.OF": "广发沪深300ETF联接C"}
+                dicResult['000300.SH'] = {"161207.OF": "国投瑞银瑞和沪深300指数"}
+                # dicResult['000905.SH'] = {"002903.OF": "广发中证500ETF联接C类"}
+                dicResult['000905.SH'] = {"006087.OF": "华泰柏瑞中证500ETF联接C"}
+                dicResult['SPX.GI'] = {"050025.OF": "博时标普500ETF联接A"}
+                dicResult['HSI.HI'] = {"000071.OF": "华夏恒生ETF联接A"}
+                dicResult['SPSIOP.SPI'] = {"007844.OF": "华宝标普油气C人民币"}
+                dicResult['AU9999.SGE'] = {'002610.OF': "博时黄金ETF联接A"}
+                dicResult['H00140.SH'] = {'160602.OF': "鹏华普天债券A "}
+                dicResult['000852.SH'] = {'006487.OF': "广发中证1000C "}
+                dicResult['000906.SH'] = {'001588.OF':'天弘中证800A'}
+                dicResult['399006.SZ'] = {'110026.OF': '易方达创业板ETF联接A'}
+                dicResult['399005.SZ'] = {'161118.OF': '易方达中小板'}
+        else:
+            dicResult = product_name_dic
 
-        #过滤掉定期开放的基金
-        fundDf['nameFlag'] = [name.find(u'定期开放') for name in fundDf['FUND_FULLNAME'].tolist()]
-        fundDf = fundDf[fundDf['nameFlag']==-1]
-        fundDf.drop(labels=['nameFlag'],axis=1,inplace=True)
+        total_fund_list = []
+        for asset, dic in self.assetIndex.items():
+            for index, index_name in dic.items():
+                total_fund_list = total_fund_list + list(dicResult[index].keys())
 
-        #按照基金的二级分类，对基金池划分
-        dicFundStyle = {}
-        for typeName,tempDf in fundDf.groupby(['FUND_INVESTTYPE']):
-            dicFundStyle[typeName] = tempDf
-        return dicFundStyle
+        GetDataTotalMainDemo = GetDataTotalMain(data_resource='wind')
 
-    #再次处理基金池,返回大类对应的产品和基金净值数据
-    def secondSelect(self,dicFundDf,fundNetValueUpdateDf):
-        dicResult = {}
-        # if u'被动指数型基金' in dicFundDf:
-        #     tempETFDf = dicFundDf[u'被动指数型基金']
+        df_list = []
+        if fund_type=='ETF':
+            for code in total_fund_list:
+                temp_df = GetDataTotalMainDemo.get_hq_data(code, start_date=start_date, end_date=end_date,
+                                                           code_style='etf_fund')
+                temp_df.rename(columns={"close_price": code}, inplace=True)
+                df_list.append(temp_df)
+        else:
+            for code in total_fund_list:
+                temp_df = GetDataTotalMainDemo.get_hq_data(code, start_date=start_date, end_date=end_date,
+                                                           code_style='fund',name_list=['net_value_adj'])
+                temp_df.rename(columns={"net_value_adj": code}, inplace=True)
+                df_list.append(temp_df)
+        result_df = pd.concat(df_list, axis=1, sort=True)
+        return dicResult, result_df
 
-        dicResult['000016.SH'] =['110020.OF']
-        dicResult['000300.SH'] = ['270010.OF']
-        dicResult['000905.SH'] = ['162711.OF','110026.OF']
-        dicResult['SPX.GI'] = ['270042.OF']
-        dicResult['CBA00601.CS'] = ['001021.OF']
-        # dicResult['AU9999.SGE'] = ['002610.OF']
-        dicResult['AU9999.SGE'] = ['518800.OF']
+    def get_asset_fund(self, start_date='2019-01-01', end_date='2019-02-01', product_name_dic={},fund_type='ETF'):
+        dicResult, result_df = self.secondSelect(start_date, end_date, product_name_dic,fund_type)
+        return dicResult, result_df
 
-        totalSelectList = []
-        for key,value in dicResult.items():
-            totalSelectList = totalSelectList+value
-        resultDf = fundNetValueUpdateDf[totalSelectList]
-        return dicResult,resultDf
-
-    #整理净值数据
-    def settleFundNetValue(self,fundInfoDf,fundNetValueDf):
-        def fifteData(tempSe):
-            startDate = fundInfoDf.ix[tempSe.name, 'FUND_SETUPDATE']
-            tempSe[tempSe.index<startDate] = np.nan
-            return tempSe
-
-        fundNetValueUpdateDf = fundNetValueDf.apply(fifteData)
-        fundNetValueUpdateDf.dropna(how='all',inplace=True)
-        return fundNetValueUpdateDf
-
-    def goMain(self):
-        GetProductDataDemo = GetProductData()
-        fundInfoDf = GetProductDataDemo.getFundInfo(productList=list(self.dicProduct.keys()))
-        startTime = fundInfoDf['FUND_SETUPDATE'].min()
-        fundNetValueDf = GetProductDataDemo.getFundNetValue(startTime,productList=list(self.dicProduct.keys()))
-        fundNetValueUpdateDf = self.settleFundNetValue(fundInfoDf,fundNetValueDf)
-        dicFundDf = self.firstSelect(fundInfoDf)
-        dicResult, resultDf = self.secondSelect(dicFundDf,fundNetValueUpdateDf)
-        return dicResult, resultDf
 
 if __name__ == '__main__':
-    SetPortfolioDemo = SetPortfolio()
-    SetPortfolioDemo.goMain()
+    asset_index = {'stock': {'000018.SH': '180金融', '000038.SH': '上证金融', '000036.SH': '上证消费', '000037.SH': '上证医药',
+                             '000928.SH': '中证能源', '000932.SH': '中证消费', '000933.SH': '中证医药', '000934.SH': '中证金融',
+                             '000914.SH': '300金融', '000913.SH': '300医药', '000989.SH': '全指可选', 'H30021.CSI': '800食品',
+                             'H30255.CSI': '500医药', '000991.SH': '全指医药', '000993.SH': '全指信息', '000992.SH': '全指金融',
+                             'H30252.CSI': '500工业', 'H30251.CSI': '500原料', '000986.SH': '全指能源', '000987.SH': '全指材料',
+                             'H30257.CSI': '500信息', '000990.SH': '全指消费', '399975.SZ': '证券公司', '000988.SH': '全指工业',
+                             '399986.SZ': '中证银行', 'H30191.CSI': '有色金属', 'H30165.CSI': '房地产', 'H30184.CSI': '半导体',
+                             '931160.CSI': '通信设备', '399998.SZ': '中证煤炭', '930606.CSI': '中证钢铁', '930697.CSI': '家用电器'},
+                   'bond': {'H00140.SH': '上证五年期国债指数'}}
+    SetPortfolioDemo = SetPortfolio(assetIndex=asset_index)
+    SetPortfolioDemo.get_fund()

@@ -8,23 +8,23 @@ import pandas as pd
 from iFinDPy import *
 from WindPy import w
 from datetime import datetime
-from PrintInfo import PrintInfo
 import numpy as np
+import mylog as mylog
 
 class GetProductData:
     def __init__(self):
-        self.PrintInfoDemo = PrintInfo()
+        self.logger = mylog.logger
 
     # 获取基金池的基本信息
     def getFundInfo(self,productList=[]):
         if not productList:
-            self.PrintInfoDemo.PrintLog('未传入指数参数，请检查！')
+            self.logger.info('未传入指数参数，请检查！')
             return
 
         try:
             fundInfoDf = pd.read_excel(
                 r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\GetHistoryData\\fundInfoDf.xlsx")
-            self.PrintInfoDemo.PrintLog(infostr='本地读取基金历史信息数据 fundInfoDf')
+            self.logger.info('本地读取基金历史信息数据 fundInfoDf')
             return fundInfoDf
         except:
             w.start()
@@ -47,11 +47,10 @@ class GetProductData:
             writer = pd.ExcelWriter(r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\GetHistoryData\\fundInfoDf.xlsx")
             fundInfoDf.to_excel(writer)
             writer.save()
-            self.PrintInfoDemo.PrintLog(infostr='wind读取基金历史信息数据成功，写入本地文件fundInfoDf.xlsx')
+            self.logger.info('wind读取基金历史信息数据成功，写入本地文件fundInfoDf.xlsx')
             return fundInfoDf
 
         # 获取基金池的历史净值数据
-
     def getFundNetValue(self, startTime,productList=[]):
         if not productList:
             self.PrintInfoDemo.PrintLog('未传入指数参数，请检查！')

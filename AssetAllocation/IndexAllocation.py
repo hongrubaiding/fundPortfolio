@@ -3,34 +3,16 @@
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
-from PrintInfo import PrintInfo
-# import matplotlib.pyplot as plt
 
-PrintInfoDemo = PrintInfo()
-
-def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**modelParam):
-    # PrintInfoDemo.PrintLog('IndexAllocation : ',method)
-
-
-    '''
-    功能：输入协方差矩阵，得到不同优化方法下的权重配置
-    输入：
-        cov_mat  pd.DataFrame,协方差矩阵，index和column均为资产名称
-        method  优化方法，可选的有min variance、risk parity、max diversification、equal weight
-    输出：
-        pd.Series  index为资产名，values为weight
-    PS:
-        依赖scipy package
-    '''
+def get_smart_weight(returnDf, initX, asset_index={}, method='mean_var', allocationParam={}):
     cov_mat = returnDf.cov()
-
     if not isinstance(cov_mat, pd.DataFrame):
         raise ValueError('cov_mat should be pandas DataFrame！')
 
     omega = np.matrix(cov_mat.values)  # 协方差矩阵
     def MaxDrawdown(return_list):
         '''最大回撤率'''
-        return_list = (return_list+1).cumprod()
+        return_list = (return_list + 1).cumprod()
         return_list = return_list.values
         i = np.argmax(np.maximum.accumulate(return_list) - return_list)
         if i == 0:
@@ -40,30 +22,44 @@ def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**mode
         return result
 
     if method == 'target_maxdown':
-        rate = modelParam.get('allocationParam',0.3)
+        rate = allocationParam.get('allocationParam', 0.3)
         maxDwonSe = returnDf.dropna().apply(MaxDrawdown)
-        assetMaxDown = (maxDwonSe.max() -maxDwonSe.min()) * rate  # 用户可承担的最大回撤组合站所有资产最大的百分比
+        assetMaxDown = (maxDwonSe.max() - maxDwonSe.min()) * rate  # 用户可承担的最大回撤组合站所有资产最大的百分比
     elif method == 'target_risk':
-        rate = modelParam.get('allocationParam', 0.2)
-        #用户可承担的风险组合占所有资产最大的百分比
-        assetStd = (returnDf.std().max() - returnDf.std().min())*np.sqrt(250)*rate
+        rate = allocationParam.get('allocationParam', 0.2)
+        # 用户可承担的风险组合占所有资产最大的百分比
+        assetStd = (returnDf.std().max() - returnDf.std().min()) * np.sqrt(250) * rate
     elif method == 'risk_parity':
-        riskAr = []             #对国内股票看重的程度
-        if not modelParam or modelParam['allocationParam'] == 'equal':
-            riskAr = [1/returnDf.shape[1]]*returnDf.shape[1]
-        else:
-            riskRate = modelParam['allocationParam']
-            for indexName in returnDf.columns:
-                 if indexName in ['000016.SH','000300.SH','000905.SH']:
-                     riskAr.append(riskRate/3)
-                 # else:
-                 #     riskAr.append((1-riskRate)/(returnDf.shape[1]-3))
-                 elif indexName != 'CBA00601.CS':
-                     riskAr.append((1-riskRate)*0.98/(returnDf.shape[1]-4))
-                 else:
-                     riskAr.append((1-riskRate)*0.02)
+        riskAr = []  # 对国内股票看重的程度
+        riskAr = [1 / returnDf.shape[1]] * returnDf.shape[1]
+        # not_bond_num = cov_mat.shape[1]-cov_mat[asset_index['bond']].shape[1]
+        # mrc_bond = 0.01
+        # riskAr = []
+        # for col in cov_mat:
+        #     if col not in asset_index['bond'].keys():
+        #         riskAr.append((1-mrc_bond)/not_bond_num)
+        #     else:
+        #         riskAr.append(mrc_bond)
+        # riskAr = [0.36,0.26,0.26,0.02,0.10]
 
-            # print('riskAr:',riskAr)
+
+    def riskparity_and_meanvar_con():
+        bnds = []
+        for col in cov_mat.columns.tolist():
+            if col in asset_index['bond'].keys():
+                if method == "risk_parity":
+                    tem_bnd = (0,allocationParam.get('bond_limit', 0.2084))
+                elif method == 'mean_var':
+                    tem_bnd = (0,allocationParam.get('bond_limit', 0.0158))
+            elif col in asset_index['commodity']:
+                if method == "risk_parity":
+                    tem_bnd = (0,allocationParam.get('com_limit', 0.5921))
+                elif method == 'mean_var':
+                    tem_bnd = (0,allocationParam.get('com_limit', 0.7559))
+            else:
+                tem_bnd = (0, 1)
+            bnds.append(tem_bnd)
+        return tuple(bnds)
 
     # 定义目标函数
     def fun1(x):  # 组合总风险
@@ -72,13 +68,12 @@ def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**mode
 
     def fun2(x):
         tmp = (omega * np.matrix(x).T).A1
-        risk = x * tmp
-        # delta_risk = [sum((i - risk) ** 2) for i in risk]
-        totalRisk = risk.sum()
-
-        delta_risk = [((i - riskAr[list(risk).index(i)]*totalRisk) ** 2).sum() for i in risk]
-        # delta_risk = [sum((i - riskAr[list(risk).index(i)]*risk) ** 2) for i in risk]
-        return sum(delta_risk)
+        delta_risk1 = []
+        risk_TRC_div_dp = x * tmp / ((np.sqrt(np.matrix(x) * omega * np.matrix(x).T).A1[0]) ** 2)
+        for r2 in risk_TRC_div_dp:
+            delta_risk1.append((r2 - riskAr[list(risk_TRC_div_dp).index(r2)]) ** 2)
+        total_delta = sum(delta_risk1)
+        return total_delta
 
     def fun3(x):
         den = x * omega.diagonal().T
@@ -90,7 +85,7 @@ def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**mode
         port_variance = np.sqrt(252 * np.matrix(x) * omega * np.matrix(x).T)
 
         # result = -port_returns / port_variance
-        result = -(port_returns-10*(port_variance))
+        result = -(port_returns - 10 * (port_variance))
         return result
 
     def fun5(x):
@@ -99,43 +94,39 @@ def get_smart_weight(returnDf,initX, method='mean_var',wts_adjusted=False,**mode
 
     # 初始值 + 约束条件
     x0 = initX.values
-    bnds = tuple((0, 1) for x in x0)
     cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1})
-    options = {'disp': False, 'maxiter': 1000, 'ftol': 1e-25,}
+    options = {'disp': False, 'maxiter': 1000, 'ftol': 1e-25, }
 
     if method == 'min_variance':
+        bnds = tuple((0, 1) for x in x0)
         res = minimize(fun1, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options)
     elif method == 'risk_parity':
-        res = minimize(fun2, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options)
+        bndrisk = riskparity_and_meanvar_con()
+        # bndrisk = tuple((0, 1) for x in x0)
+        res = minimize(fun2, x0, bounds=bndrisk, constraints=cons, method='SLSQP', options=options)
     elif method == 'max_diversification':
+        bnds = tuple((0, 1) for x in x0)
         res = minimize(fun3, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options)
     elif method == 'equal_weight':
         return pd.Series(index=cov_mat.index, data=1.0 / cov_mat.shape[0])
     elif method == 'mean_var':
-        bnds = tuple((0, 0.4) for x in x0)
-        res = minimize(fun4, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options)
+        bndrisk = riskparity_and_meanvar_con()
+        res = minimize(fun4, x0, bounds=bndrisk, constraints=cons, method='SLSQP', options=options)
     elif method == 'target_maxdown':
+        bnds = tuple((0, 1) for x in x0)
         cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1},
-                {'type': 'eq', 'fun': lambda x: -MaxDrawdown((x*returnDf).sum(axis=1))+assetMaxDown})
-        res = minimize(fun5, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options,tol=1e-5)  #Nelder Mead,SLSQP
+                {'type': 'eq', 'fun': lambda x: -MaxDrawdown((x * returnDf).sum(axis=1)) + assetMaxDown})
+        res = minimize(fun5, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options,
+                       tol=1e-5)  # Nelder Mead,SLSQP
     elif method == 'target_risk':
-        cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1},{'type': 'eq', 'fun': lambda x: -np.sqrt(fun1(x)[0,0])*np.sqrt(250)+assetStd}
-                )#,
+        bnds = tuple((0, 1) for x in x0)
+        cons = ({'type': 'eq', 'fun': lambda x: sum(x) - 1},
+                {'type': 'eq', 'fun': lambda x: -np.sqrt(fun1(x)[0, 0]) * np.sqrt(250) + assetStd}
+                )  # ,
         res = minimize(fun5, x0, bounds=bnds, constraints=cons, method='SLSQP', options=options)
     else:
         raise ValueError('method should be min variance/risk parity/max diversification/equal weight！！！')
 
-    # 权重调整
-    if res['success'] == False:
-        # PrintInfoDemo.PrintLog(infostr="minize result：",otherInfo=res['message'])
-        # print("minize result：",res['message'])
-        pass
-
     wts = pd.Series(index=cov_mat.index, data=res['x'])
-    if wts_adjusted == True:
-        wts = wts[wts >= 0.0001]
-        return wts / wts.sum() * 1.0
-    elif wts_adjusted == False:
-        return wts
-    else:
-        raise ValueError('wts_adjusted should be True/False！')
+    wts = wts / wts.sum() * 1.0
+    return wts

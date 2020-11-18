@@ -8,16 +8,15 @@ import pandas as pd
 from iFinDPy import *
 from WindPy import w
 from datetime import datetime
-from PrintInfo import PrintInfo
-
+import mylog as mylog
 class GetIndexData:
     def __init__(self):
-        self.PrintInfoDemo = PrintInfo()
+        self.logger = mylog.logger
 
     def getData(self,indexCodeList=[],startDate = '2006-01-01',endDate = '2017-06-01',sourceFlag='wind'):
         indexDataDf = pd.DataFrame()
         if sourceFlag=='wind':
-            self.PrintInfoDemo.PrintLog(infostr='wind读取大类指数历史数据 indexDataDf%s'%endDate)
+            self.logger.info('wind读取大类指数历史数据 indexDataDf%s'%endDate)
             w.start()
             indexData = w.wsd(codes=indexCodeList, fields=['close'], beginTime=startDate, endTime=endDate)
             if indexData.ErrorCode != 0:
@@ -55,10 +54,10 @@ class GetIndexData:
 
             self.PrintInfoDemo.PrintLog(infostr='ifind读取大类指数历史数据成功,写入本地文件indexDataDf%s.xlsx' % endDate)
 
-        excelpath = r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\GetHistoryData\\indexDataDf" + "%s.xlsx" % endDate
-        writer = pd.ExcelWriter(excelpath)
-        indexDataDf.to_excel(writer)
-        writer.save()
+        # excelpath = r"C:\\Users\\lenovo\\PycharmProjects\\fundPortfolio\\GetHistoryData\\indexDataDf" + "%s.xlsx" % endDate
+        # writer = pd.ExcelWriter(excelpath)
+        # indexDataDf.to_excel(writer)
+        # writer.save()
         return indexDataDf
 
     def getDataWindFind(self,indexCodeList=[],startDate='2006-01-01',endDate='2017-06-01'):
