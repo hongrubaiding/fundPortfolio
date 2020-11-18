@@ -62,11 +62,11 @@ class CallMain:
                                       'down_max_num': 0.447583290105109, 'judge_market': 52,
                                       'max_loss_limit': 0.057219432873010984, 'up_day_num': 0.8399154687488591,
                                       'up_max': 0.2705637796307785, 'vol_rate': 0.7675222487190907}
-                    best_param_dic = {'back_day_limit': 17, 'conti_up_day': 0.10402050680807062,
-                                      'corr_limit': 0.9434849921258115, 'down_max_num': 0.6632983776945698,
-                                      'judge_market': 30, 'max_loss_limit': 0.051185163625393305,
-                                      'up_day_num': 0.8997744660289387, 'up_max': 0.8479220579989855,
-                                      'vol_rate': 0.10309199514290202}
+                    best_param_dic = {'back_day_limit': 14, 'conti_up_day': 0.4490201635500951,
+                                      'corr_limit': 0.9177608537272707, 'down_max_num': 0.7910721185996274,
+                                      'judge_market': 42, 'max_loss_limit': 0.1305479472011245,
+                                      'up_day_num': 0.568715917676664, 'up_max': 0.4146799716429238,
+                                      'vol_rate': 0.45970281879809183}
                 method = 'industry_recyle'
                 # method='industry_recyle_equ'
                 IndustryRecyleDemo = IndustryRecyle()
